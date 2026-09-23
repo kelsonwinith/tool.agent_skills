@@ -3,7 +3,7 @@ name: project-react-architecture
 description: "Use whenever building or editing ANY React/Next.js UI — cards, forms, dropdowns, dashboards, modals, buttons, tables — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components, splitting a growing module into semantic submodules, or adding shared types/constants. Enforces: global UI primitives in `/components/[module]/[name].ui.tsx`, categorized layout containers in `/layouts/[category]/[name].layout.tsx`, app-wide types in `/types/[name].type.ts`, app-wide constants in `/constants/[name].constant.ts`, feature components in `features/[feature]/components/[name]/` with zero inline className styling, and a fixed @does/@flow/@returns/@edge comment block on every exported non-trivial function."
 ---
 
-# React Clean Component Architecture
+# Project React Architecture
 
 Every UI and code element belongs to exactly one layer:
 
