@@ -1,0 +1,30 @@
+{
+  "skill_name": "project-documentation",
+  "evals": [
+    {
+      "id": 0,
+      "name": "bootstrap-docs",
+      "prompt": "There are no docs in this repo. Bootstrap the documentation: set up docs/ with a canonical context, product, architecture, and development docs, following the project's conventions.",
+      "expected_output": "A docs/ tree with context/001-ubiquitous-language.md, plus product/, architecture/, and development/ documents using the docs/<subfolder>/<NNN>-<name>.md convention and version/status headers.",
+      "files": [],
+      "assertions": [
+        "Creates docs/context/001-ubiquitous-language.md",
+        "Every document follows docs/<subfolder>/<NNN>-<kebab-name>.md",
+        "Every non-exempt document has Document Version and Status headers",
+        "Does not invent unverified requirements (uses TODO markers for unknowns)"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "grill-and-mismatch-before-write",
+      "prompt": "Add a 30-day refund policy for admins. Update the docs and implement it.",
+      "expected_output": "The agent first interrogates the request in rounds, checks existing docs and requirements, surfaces any mismatch, and does not write docs or code until the user confirms a shared understanding.",
+      "files": [],
+      "assertions": [
+        "Asks clarifying questions before writing any files",
+        "Checks existing docs/requirements before implementing",
+        "Does not modify docs or code before user confirmation when requirements conflict"
+      ]
+    }
+  ]
+}

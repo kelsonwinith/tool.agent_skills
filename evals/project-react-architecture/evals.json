@@ -1,0 +1,31 @@
+{
+  "skill_name": "project-react-architecture",
+  "evals": [
+    {
+      "id": 0,
+      "name": "user-card-feature",
+      "prompt": "Create a user profile card feature in this Next.js app. It shows the user's avatar, name, and role, plus a delete button that calls an API. Follow the project's component architecture.",
+      "expected_output": "A feature module under features/<feature>/components/<name>/ with a .component.tsx view (zero inline className), a paired .hook.ts resolving props/handlers, a .type.ts, and reusable visual pieces promoted to /components/<module>/[name].ui.tsx and /layouts/.",
+      "files": [],
+      "assertions": [
+        "The component view file contains no className attribute",
+        "The component lives under features/<feature>/components/<name>/",
+        "A paired hook file resolves props and exposes handlers",
+        "Reusable visual elements are placed in /components/<module>/ as .ui.tsx or in /layouts/",
+        "No use of any, @ts-ignore, or non-null assertions"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "split-growing-module",
+      "prompt": "This features/dashboard/utils/layoutModel.ts file has grown to handle bounds, collision, and grid math. Split it into a clean module.",
+      "expected_output": "A named folder with a public entrypoint (layoutModel.util.ts) and semantic subfiles (geometries/bounds.geometry.ts, collision.geometry.ts, grid.geometry.ts), no generic helper.ts/index.ts names.",
+      "files": [],
+      "assertions": [
+        "Creates a named folder with one public entrypoint",
+        "Split files use semantic suffixes such as .geometry.ts",
+        "No generic file names like helper.ts, common.ts, or index.ts"
+      ]
+    }
+  ]
+}
