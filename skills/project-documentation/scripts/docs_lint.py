@@ -7,7 +7,7 @@ Checks (see SKILL.md):
   3. <NNN> is a 3-digit number, unique within its subfolder.
   4. Subfolder and file names are lowercase kebab-case.
   5. Every document (except the index) opens with the header block:
-     **Document Version**: X.Y.Z and **Status**: Draft|Active|Deprecated.
+     **Document Version**: X.Y.Z and **Status**: Draft|Active.
 
 Usage:
     python scripts/docs_lint.py [docs_dir]   # docs_dir defaults to "docs"
@@ -23,7 +23,7 @@ from pathlib import Path
 SUBFOLDER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FILENAME_RE = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 VERSION_RE = re.compile(r"^\*\*Document Version\*\*:\s*\S+", re.MULTILINE)
-STATUS_RE = re.compile(r"^\*\*Status\*\*:\s*(Draft|Active|Deprecated)\b", re.MULTILINE)
+STATUS_RE = re.compile(r"^\*\*Status\*\*:\s*(Draft|Active)\b", re.MULTILINE)
 
 IGNORED_ROOT_FILES = {"readme.md"}
 # The canonical-context glossary and ADR records have their own formats
@@ -88,7 +88,7 @@ def lint(docs_dir: Path):
                 failures.append(f"{docs_dir}/{rel}: missing '**Document Version**: X.Y.Z' header")
             if not STATUS_RE.search(text):
                 failures.append(
-                    f"{docs_dir}/{rel}: missing '**Status**: Draft|Active|Deprecated' header"
+                    f"{docs_dir}/{rel}: missing '**Status**: Draft|Active' header"
                 )
 
     return failures, warnings

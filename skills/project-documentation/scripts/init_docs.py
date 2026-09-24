@@ -35,11 +35,10 @@ GLOSSARY_TEMPLATE = """# {context_name}
 
 ## Language
 
-<!-- Add a term when it is resolved:
-**Term**:
-A one-or-two-sentence definition of what it IS.
-_Avoid_: synonym, synonym
--->
+<!-- Add a row when a term is resolved. Meaning says what the term IS, in one or two sentences; list synonyms under Avoid. -->
+
+| Term | Meaning | Avoid |
+| :--- | :--- | :--- |
 """
 
 
@@ -86,6 +85,12 @@ def main() -> int:
         print(f"CREATE  {path}")
     for path in existing:
         print(f"SKIP    {path} (already exists)")
+
+    # Drop placeholder .gitkeep files once a folder has real content.
+    for subfolder in SUBFOLDERS:
+        keep = docs / subfolder / ".gitkeep"
+        if keep.exists() and any(p.name != ".gitkeep" for p in keep.parent.iterdir()):
+            keep.unlink()
 
     print(f"\nNext: populate docs/context/001-ubiquitous-language.md with verified domain terms,")
     print("then document verified facts in the other subfolders. Run scripts/docs_lint.py to check.")

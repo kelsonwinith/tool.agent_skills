@@ -72,20 +72,39 @@ class GlossaryLintTests(unittest.TestCase):
 
     def test_valid_glossary_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = self._write(tmp, "# C\n\n## Language\n\n**Order**:\nA request to buy.\n_Avoid_: Purchase\n")
+            path = self._write(
+                tmp,
+                "# C\n\n## Language\n\n| Term | Meaning | Avoid |\n| :--- | :--- | :--- |\n"
+                "| Order | A request to buy. | Purchase |\n",
+            )
             self.assertEqual(run("glossary_lint.py", str(path)).returncode, 0)
+
+    def test_empty_table_warns_but_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(tmp, "# C\n\n## Language\n\n| Term | Meaning | Avoid |\n| :--- | :--- | :--- |\n")
+            result = run("glossary_lint.py", str(path))
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertIn("no rows yet", result.stdout)
 
     def test_duplicate_term_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = self._write(tmp, "# C\n\n## Language\n\n**Order**:\nA.\n\n**Order**:\nB.\n")
+            path = self._write(
+                tmp,
+                "# C\n\n## Language\n\n| Term | Meaning | Avoid |\n| :--- | :--- | :--- |\n"
+                "| Order | A. | |\n| Order | B. | |\n",
+            )
             self.assertEqual(run("glossary_lint.py", str(path)).returncode, 1)
 
-    def test_missing_definition_fails(self):
+    def test_missing_meaning_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = self._write(tmp, "# C\n\n## Language\n\n**Order**:\n\n**Invoice**:\nA bill.\n")
+            path = self._write(
+                tmp,
+                "# C\n\n## Language\n\n| Term | Meaning | Avoid |\n| :--- | :--- | :--- |\n"
+                "| Order | | Purchase |\n",
+            )
             result = run("glossary_lint.py", str(path))
             self.assertEqual(result.returncode, 1)
-            self.assertIn("no definition", result.stdout)
+            self.assertIn("no meaning", result.stdout)
 
 
 class AdrScanTests(unittest.TestCase):

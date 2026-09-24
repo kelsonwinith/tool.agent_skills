@@ -1,10 +1,10 @@
 ---
 name: project-documentation
-description: "Portable, project-agnostic documentation guardian. Manages, inspects, and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use this whenever you develop, modify, or refactor a feature, or when requirements, business rules, APIs, data models, architecture, or terminology change — even if the user never says 'docs' or 'documentation.' It enforces relentless pre-implementation grilling of the request's logic (a design-tree interview that resolves every open decision before anything is written), terminology reconciliation against the canonical context, requirement-mismatch detection with user confirmation before requirement changes, multi-document consistency, bundled deterministic validators (docs-tree, glossary, and ADR checks), and the numbered docs subfolder file convention. Works for any language, framework, or repo shape (single app or monorepo)."
+description: "Portable, project-agnostic documentation guardian. Manages and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use this whenever you develop, modify, or refactor a feature, or when requirements, business rules, APIs, data models, architecture, or terminology change — even if the user never says 'docs' or 'documentation.' It grills the request's logic before writing (a design-tree interview), reconciles terminology against the canonical context, detects requirement mismatches and confirms before changing them, keeps every document describing the current system (removed features are removed from the docs), ships deterministic validators, and follows the numbered docs subfolder file convention. Works for any language, framework, or repo shape."
 license: MIT
 compatibility: "Requires Python 3 (standard library only) to run the bundled helpers in scripts/."
 metadata:
-  version: 1.2.0
+  version: 1.3.0
 ---
 
 # Project Documentation
@@ -12,6 +12,12 @@ metadata:
 A project's docs and its code drift apart quietly. This skill keeps them honest: it manages the `docs/` tree, agrees on what words mean, and makes sure a request's logic is settled before anything gets written.
 
 It contains no project-specific facts — everything it needs is discovered from the project and written into that project's own `docs/`.
+
+## Docs describe the current system, not its history
+
+Documentation is a snapshot of what the system *is right now*, never a changelog. If a feature is removed or replaced, delete its documentation and every reference to it — don't leave a "removed" or "deprecated" section behind, and don't keep describing behaviour that no longer exists. When code and docs disagree, the docs are wrong until updated.
+
+The one deliberate exception is the ADR log under `decisions/`: it records *why* past choices were made, and is useful precisely because it is historical.
 
 ## The `docs/` tree
 
@@ -29,22 +35,23 @@ Every document except the glossary and the ADR log opens with a header:
 # <Title>
 
 **Document Version**: X.Y.Z
-**Status**: Draft | Active | Deprecated
+**Status**: Draft | Active
 ```
 
 Keep `docs/README.md` as an index, with the canonical context listed first.
 
 ## The canonical context
 
-Different people call the same thing different names — "account" vs "customer", "order" vs "purchase". Left alone, everyone guesses, and the guesses drift. So keep one glossary at `docs/context/001-ubiquitous-language.md` that says what each project-specific term *is* (not what it does) and lists the words to avoid:
+Different people call the same thing different names — "account" vs "customer", "order" vs "purchase". Left alone, everyone guesses, and the guesses drift. So keep one glossary at `docs/context/001-ubiquitous-language.md` as a table of terms, what each one *means* (what it is, not what it does), and the words to avoid:
 
 ```markdown
-**Order**:
-A request from a customer to buy one or more items.
-_Avoid_: Purchase, transaction
+| Term | Meaning | Avoid |
+| :--- | :--- | :--- |
+| Order | A request from a customer to buy one or more items. | Purchase, transaction |
+| Customer | A person or organization that places orders. | Client, buyer, account |
 ```
 
-Only project-specific terms belong here — not general programming concepts. When a term is resolved, write it down immediately. When someone uses a term that conflicts with the glossary, say so and reconcile it before going further. Multi-context repos keep one glossary per context plus a map (format in [references/formats.md](references/formats.md)).
+Only project-specific terms belong here — not general programming concepts. One canonical term per concept; list every synonym in `Avoid`. When a term is resolved, write it down immediately. When someone uses a term that conflicts with the glossary, say so and reconcile it before going further. Multi-context repos keep one glossary per context plus a map (format in [references/formats.md](references/formats.md)).
 
 ## Before you build
 
@@ -64,11 +71,13 @@ Message templates are in [references/formats.md](references/formats.md).
 
 ## Keeping docs in sync
 
-Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects. Keep names, status values, and rules identical across all of them, and preserve unrelated context when you edit.
+Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects, and every document should end up describing the system as it now stands. Keep names, status values, and rules identical across all of them, and preserve unrelated context when you edit.
+
+Removals count as changes: when a feature, endpoint, field, or rule disappears, prune it from every document that mentioned it, and remove the whole document if nothing real is left in it.
 
 ## Decisions
 
-Record a decision as an ADR only when it's hard to reverse, surprising without context, and the result of a real trade-off. Otherwise skip it. The template is in [references/formats.md](references/formats.md); keep IDs sequential.
+Record a decision as an ADR only when it's hard to reverse, surprising without context, and the result of a real trade-off. Otherwise skip it. The template is in [references/formats.md](references/formats.md); keep IDs sequential. ADRs are the one place history is kept on purpose — current-state docs are not.
 
 ## Bootstrapping
 

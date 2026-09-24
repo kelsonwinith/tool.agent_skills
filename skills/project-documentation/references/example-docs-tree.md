@@ -35,13 +35,10 @@ How orders are created, tracked, and cancelled.
 
 ## Language
 
-**Order**:
-A request from a customer to buy one or more items.
-_Avoid_: Purchase, transaction
-
-**Customer**:
-A person or organization that places orders.
-_Avoid_: Client, buyer, account
+| Term | Meaning | Avoid |
+| :--- | :--- | :--- |
+| Order | A request from a customer to buy one or more items. | Purchase, transaction |
+| Customer | A person or organization that places orders. | Client, buyer, account |
 ```
 
 ### `product/002-business-rules.md`

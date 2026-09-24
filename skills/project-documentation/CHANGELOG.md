@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+- Docs now describe the current system only: removed features are deleted from the docs and every reference is pruned. Document status is `Draft | Active` (dropped `Deprecated`).
+- Canonical-context glossary is now a `| Term | Meaning | Avoid |` table; `glossary_lint.py`, `init_docs.py`, `new_doc.py`, and the examples follow the new format.
+
 ## 1.2.0
 - Rewrote SKILL.md as a lean guideline: principles and rationale instead of a numbered, cross-referenced rulebook.
 

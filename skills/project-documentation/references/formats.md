@@ -23,18 +23,14 @@ Companion reference for `SKILL.md`. Read the relevant section when you are about
 
 ## Language
 
-**Order**:
-A request from a customer to buy one or more items.
-_Avoid_: Purchase, transaction
-
-**Invoice**:
-A request for payment sent to a customer after delivery.
-_Avoid_: Bill, payment request
-
-**Customer**:
-A person or organization that places orders.
-_Avoid_: Client, buyer, account
+| Term | Meaning | Avoid |
+| :--- | :--- | :--- |
+| Order | A request from a customer to buy one or more items. | Purchase, transaction |
+| Invoice | A request for payment sent to a customer after delivery. | Bill, payment request |
+| Customer | A person or organization that places orders. | Client, buyer, account |
 ```
+
+Definitions say what a term *is*, not what it does. Keep each to one or two sentences, and put every synonym in the `Avoid` column.
 
 ---
 

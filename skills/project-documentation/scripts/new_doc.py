@@ -19,7 +19,7 @@ from pathlib import Path
 SUBFOLDER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 NUMBERED_RE = re.compile(r"^(\d{3})-")
-VALID_STATUS = ("Draft", "Active", "Deprecated")
+VALID_STATUS = ("Draft", "Active")
 
 
 def next_number(subfolder_dir: Path) -> int:

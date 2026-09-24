@@ -7,15 +7,15 @@ Expected format (see SKILL.md):
 
     ## Language
 
-    **Order**:
-    A request from a customer to buy one or more items.
-    _Avoid_: Purchase, transaction
+    | Term | Meaning | Avoid |
+    | :--- | :--- | :--- |
+    | Order | A request from a customer to buy one or more items. | Purchase, transaction |
 
 Checks:
-  1. A '## Language' section exists.
-  2. Every term has a non-empty definition of one or two sentences.
+  1. A '## Language' section with a Term/Meaning/Avoid table exists.
+  2. Every term has a non-empty meaning of one or two sentences.
   3. No duplicate terms.
-  4. Optionally, with --scan, flags '_Avoid_' synonyms that still appear elsewhere.
+  4. Optionally, with --scan, flags 'Avoid' synonyms that still appear elsewhere.
 
 Usage:
     python scripts/glossary_lint.py [glossary.md] [--scan PATH ...]
@@ -29,37 +29,53 @@ import re
 import sys
 from pathlib import Path
 
-TERM_RE = re.compile(r"^\*\*(.+?)\*\*:\s*(.*)$")
-AVOID_RE = re.compile(r"^_Avoid_:\s*(.*)$", re.IGNORECASE)
 LANGUAGE_RE = re.compile(r"^#{1,3}\s+Language\b", re.IGNORECASE | re.MULTILINE)
-MAX_DEFINITION_CHARS = 300
+MAX_MEANING_CHARS = 300
 SKIP_DIRS = {".git", "node_modules", ".next", "dist", "build", "vendor", "__pycache__"}
+TEXT_SUFFIXES = {".md", ".txt", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs", ".java", ".rb"}
+
+
+def split_row(line):
+    return [cell.strip() for cell in line.strip().strip("|").split("|")]
+
+
+def is_separator(cells):
+    return bool(cells) and all(re.fullmatch(r":?-{2,}:?", cell) for cell in cells if cell != "")
 
 
 def parse_terms(text):
-    """Return a list of (term, definition, [synonyms]) preserving order."""
+    """Return a list of (term, meaning, [synonyms]) from the Language table."""
     terms = []
-    lines = text.splitlines()
-    i = 0
-    while i < len(lines):
-        match = TERM_RE.match(lines[i].strip())
-        if not match:
-            i += 1
+    columns = None  # {"term": i, "meaning": i, "avoid": i}
+
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line.startswith("|"):
             continue
-        term = match.group(1).strip()
-        definition = match.group(2).strip()
-        synonyms = []
-        j = i + 1
-        while j < len(lines) and not TERM_RE.match(lines[j].strip()):
-            stripped = lines[j].strip()
-            avoid = AVOID_RE.match(stripped)
-            if avoid:
-                synonyms = [s.strip() for s in avoid.group(1).split(",") if s.strip()]
-            elif stripped and not definition and not stripped.startswith("#"):
-                definition = stripped
-            j += 1
-        terms.append((term, definition, synonyms))
-        i = j
+        cells = split_row(line)
+        if is_separator(cells):
+            continue
+        lowered = [c.lower() for c in cells]
+        if columns is None and "meaning" in lowered and ("term" in lowered or "language" in lowered):
+            term_key = "term" if "term" in lowered else "language"
+            columns = {
+                "term": lowered.index(term_key),
+                "meaning": lowered.index("meaning"),
+                "avoid": lowered.index("avoid") if "avoid" in lowered else None,
+            }
+            continue
+        if columns is None:
+            continue
+        def cell(key):
+            idx = columns.get(key)
+            return cells[idx] if idx is not None and idx < len(cells) else ""
+        term = cell("term")
+        meaning = cell("meaning")
+        avoid = cell("avoid")
+        synonyms = [s.strip() for s in avoid.split(",") if s.strip()]
+        if term or meaning:
+            terms.append((term, meaning, synonyms))
+
     return terms
 
 
@@ -86,7 +102,7 @@ def scan_for_synonyms(synonyms, scan_paths, glossary_path):
                 continue
             if any(part in SKIP_DIRS for part in path.parts):
                 continue
-            if path.suffix.lower() not in {".md", ".txt", ".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rs", ".java", ".rb"}:
+            if path.suffix.lower() not in TEXT_SUFFIXES:
                 continue
             try:
                 for lineno, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
@@ -112,22 +128,26 @@ def lint(path: Path, scan_paths):
 
     terms = parse_terms(text)
     if not terms:
-        warnings.append(f"{path}: no terms found")
+        if re.search(r"\|\s*(term|language)\s*\|[^\n]*meaning", text, re.IGNORECASE):
+            warnings.append(f"{path}: term table has no rows yet")
+        else:
+            failures.append(
+                f"{path}: no term table found — expected a '| Term | Meaning | Avoid |' table under '## Language'"
+            )
 
     seen = {}
     all_synonyms = []
-    for term, definition, synonyms in terms:
+    for term, meaning, synonyms in terms:
         key = term.lower()
         if key in seen:
             failures.append(f"{path}: duplicate term '{term}' (also defined as '{seen[key]}')")
         else:
             seen[key] = term
-        if not definition:
-            failures.append(f"{path}: term '{term}' has no definition")
-        elif len(definition) > MAX_DEFINITION_CHARS:
+        if not meaning:
+            failures.append(f"{path}: term '{term}' has no meaning")
+        elif len(meaning) > MAX_MEANING_CHARS:
             warnings.append(
-                f"{path}: definition for '{term}' is {len(definition)} chars "
-                f"(keep it to one or two sentences)"
+                f"{path}: meaning for '{term}' is {len(meaning)} chars (keep it to one or two sentences)"
             )
         all_synonyms.extend(synonyms)
 
