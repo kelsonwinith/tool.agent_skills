@@ -18,6 +18,35 @@ npx skills add kelsonwinith/tool.agent_skills --skill project-react-architecture
 npx skills add kelsonwinith/tool.agent_skills --skill project-documentation
 ```
 
+## Update
+
+Update every installed skill to its latest version:
+
+```bash
+npx skills update
+```
+
+Update specific skills by name:
+
+```bash
+npx skills update project-react-architecture
+npx skills update project-react-architecture project-documentation
+```
+
+Scope flags: `-p` project-level only, `-g` global only, `-y` skip the scope prompt.
+
+```bash
+npx skills update -p -y     # project-level skills, no prompt
+npx skills update -g -y     # global skills, no prompt
+```
+
+See what's installed, or remove a skill:
+
+```bash
+npx skills list
+npx skills remove project-react-architecture
+```
+
 ## Structure
 
 ```text
