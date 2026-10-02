@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+- Function comments: added explicit rule that doc blocks live only above the function declaration, with no `//` comments on individual code lines (extract to a named helper instead).
+- Expanded the §5 BAD example to show and call out inline code-line comment noise.
+
 ## 1.2.0
 - Rewrote SKILL.md as a lean guideline: principles and rationale instead of a numbered, cross-referenced rulebook.
 

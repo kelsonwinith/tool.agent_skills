@@ -441,6 +441,7 @@ Rules:
 - **Never on `.component.tsx` views.** The JSX plus the paired hook's `what` line is the documentation for a view — per §2, a view's meaning should come from composition, not prose above it. If a view needs a comment to be understood, split it (§1E) instead of explaining it.
 - **A section banner is not a function comment.** Existing `// ===== SECTION =====` separators group code; they do not replace the doc block on each function.
 - **Do not restate the file suffix.** `.rule.ts`, `.geometry.ts`, `.service.ts` already say what kind of function it is — the comment states what this specific one does.
+- **Function level only — never scribble comments on code lines.** The doc block lives in exactly one place: directly above the function declaration. Do **not** drop `//` comments on individual statements, branches, assignments, or expressions inside a function body. `// check if user is null`, `// loop through items`, `// increment counter`, `// return the result` are all noise — the code already states them, and each one risks drifting out of sync when the line changes. If a code line genuinely cannot be understood without prose, that is a signal to extract it into a named function/helper with its own doc block (or give it a descriptive name), not to annotate the line. The only permitted inline comment in a file is the single explanatory `//` above a non-obvious `.constant.ts` value (see below); everything else must be function-level.
 - `.type.ts` and `.constant.ts` files don't use this block — a type or constant should be self-naming. If a constant's value needs explaining (why `400`, not `500`), add one plain `//` line above it instead.
 
 ### What each layer's block must not omit
@@ -453,7 +454,7 @@ Rules:
 | `.mapper.ts` / `.parser.ts` / `.format.ts` / `.export.ts` / `.selector.ts` / `.provider.ts` / `.factory.ts` | the transformation performed and any assumption about input shape |
 | `.ui.tsx` / `.layout.tsx`                                                                                   | usually none — only comment a non-obvious prop                    |
 
-### ❌ BAD — restates types, narrates the how, runs long
+### ❌ BAD — restates types, narrates the how, scribbles on code lines, runs long
 
 ```ts
 /**
@@ -465,11 +466,15 @@ export function getUserDisplayName(user: User | null): string {
   // check if user is null
   if (!user) return "";
   // check if a display name exists
-  ...
+  const nickname = pickNickname(user); // grab the nickname
+  // fall back to the real name
+  return nickname ?? user.name; // return result
 }
 ```
 
-### ✅ GOOD — what, param, return
+Every `//` above is on a code line and adds nothing — remove them. The remaining prose still only restates the signature.
+
+### ✅ GOOD — what, param, return; zero code-line comments
 
 ```ts
 /**
@@ -480,7 +485,13 @@ export function getUserDisplayName(user: User | null): string {
  * return: the display name, or "" when it cannot be resolved.
  */
 export function getUserDisplayName(user: User | null): string {
+  if (user === null) return "";
+  const nickname = pickNickname(user);
+  return nickname ?? user.name;
+}
 ```
+
+The body reads on its own: no `// check if null`, no `// grab the nickname`, no `// return result`. If a branch did need explaining, it would be pulled into its own named function with its own block — not annotated inline.
 
 ```ts
 /**
