@@ -1,18 +1,21 @@
 ---
 name: project-react-architecture
-description: "Use whenever building or editing ANY React/Next.js UI — cards, forms, dropdowns, dashboards, modals, buttons, tables — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components, splitting a growing module into semantic submodules, or adding shared types/constants. Enforces: global UI primitives in `/components/[module]/[name].ui.tsx`, categorized layout containers in `/layouts/[category]/[name].layout.tsx`, app-wide types in `/types/[name].type.ts`, app-wide constants in `/constants/[name].constant.ts`, feature components in `features/[feature]/components/[name]/` with zero inline className styling, and a fixed @does/@flow/@returns/@edge comment block on every exported non-trivial function."
+description: "Use whenever building or editing ANY React/Next.js UI — cards, forms, dropdowns, dashboards, modals, buttons, tables — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; feature components in `features/[feature]/components/[name]/` use zero inline className styling; and every exported non-trivial function carries a fixed comment block."
 ---
 
 # React Clean Component Architecture
 
-Every UI and code element belongs to exactly one layer:
+Every UI and code element belongs to exactly one layer. The project root holds everything that is **shared across features or used app-wide**; `features/` holds only what belongs to a single domain:
 
 ```text
-├── /components/[module]/[name].ui.tsx     # Global UI System Primitives (ONLY place raw CSS lives)
-├── /layouts/[category]/[name].layout.tsx  # Pure Structural Containers (categorized)
-├── /types/[name].type.ts                  # App-wide Shared Types & Interfaces
-├── /constants/[name].constant.ts          # App-wide Shared Constants & Config
-└── /features/[feature]/                   # Domain Feature Modules
+[project]/
+├── components/[module]/[name].ui.tsx      # Global UI System Primitives (ONLY place raw CSS lives)
+├── layouts/[category]/[name].layout.tsx   # Pure Structural Containers (categorized)
+├── hooks/[name].hook.ts                   # App-wide hooks used by ≥2 features
+├── types/[name].type.ts                   # App-wide Shared Types & Interfaces
+├── constants/[name].constant.ts           # App-wide Shared Constants & Config
+├── utils/[name].util.ts                   # App-wide shared helpers used by ≥2 features
+└── features/[feature]/                    # Domain Feature Modules (single-feature only)
     ├── components/[name]/                 # 1 folder per component (ZERO inline className)
     ├── hooks/                             # Feature-scoped hooks & store slices
     ├── types/                             # Feature-scoped domain types
@@ -28,10 +31,35 @@ Before creating or touching any file, answer in order:
 1. **Is it purely visual/presentational with no domain logic?** → `.ui.tsx` in `/components/[module]/` (§1A).
 2. **Is it pure structure (flex/grid/spacing) with no visuals or logic?** → `.layout.tsx` in `/layouts/[category]/` (§1B).
 3. **Does it connect business state/hooks to UI + Layout primitives?** → feature component in `features/[feature]/components/[name]/` (§1D).
-4. **Is it a type, constant, or helper?** → Used by ≥2 features? Global (`/types`, `/constants`). Used by 1 feature only? Feature-scoped (`features/[feature]/types|constants|utils/`).
+4. **Is it a type, constant, hook, or helper?** Decide by consumer count, not by convenience:
+   - Used by **≥2 features or app-wide** → **root project**: `/types`, `/constants`, `/hooks`, `/utils` (see §0A).
+   - Used by **1 feature only** → feature-scoped: `features/[feature]/types|constants|hooks|utils/`.
 5. **Is it a sub-component used by exactly one parent?** → Nest it (§3), then re-check the promotion scale (§3B) the moment a second consumer appears.
 
 If a file would mix two of these concerns (e.g. styling + business logic), split it — that split is the point of this architecture, not an edge case to work around.
+
+### 0A. Shared code lives at the project root, never inside a feature
+
+This is the most common placement mistake, so decide it before anything else: **if a `.type.ts`, `.constant.ts`, `.hook.ts`, `.util.ts`, or `.ui.tsx` is shared across features — or is genuinely app-wide — it belongs at the [project] root, not inside `features/[feature]/`.** A feature may only own code that no other feature needs.
+
+The root is split by kind, exactly mirroring the feature layout:
+
+| Shared thing                                          | Root location                          | First imported by                    |
+| ----------------------------------------------------- | -------------------------------------- | ------------------------------------ |
+| Presentational primitive (raw CSS)                    | `[project]/components/[module]/[name].ui.tsx` | ≥2 features / app-wide        |
+| Structural container                                  | `[project]/layouts/[category]/[name].layout.tsx` | ≥2 features / app-wide         |
+| Hook (state, selectors, effects)                      | `[project]/hooks/[name].hook.ts`       | ≥2 features                          |
+| Shared type / interface / union                       | `[project]/types/[name].type.ts`       | ≥2 features / app-wide               |
+| Shared constant / config / map                        | `[project]/constants/[name].constant.ts` | ≥2 features / app-wide             |
+| Shared pure helper                                    | `[project]/utils/[name].util.ts`       | ≥2 features                          |
+
+Rules that keep this honest:
+
+- **A `.ui.tsx` never lives under a feature.** UI primitives are global by definition — if you are writing one, it goes to `[project]/components/[module]/`. A feature composes primitives; it does not own them.
+- **Constants/helpers that even *look* reusable (theme tokens, formatting, validation, route maps, enums used for display) go to the root**, because "used by 1 feature today" almost always becomes "used by 2 tomorrow." Only keep a constant/helper in a feature when it is genuinely domain-specific to that feature's own logic.
+- **Import direction is one-way: `features/` → root, never root → `features/`.** A root `.util.ts`, `.hook.ts`, `.ui.tsx`, or `.type.ts` must not import from any `features/` folder. If a shared file needs feature-specific data, the data is passed in as a parameter or prop — that keeps the root layer dependency-free and reusable.
+- **Root files import siblings by direct path** (`@/utils/formatDate.util`, `@/types/user.type`), never through a global `index.ts` barrel (§1C).
+- **When a feature-scoped file gains a second feature consumer, promote it in the same change** — move it from `features/[feature]/…` up to the matching root folder and update every import (§3B, Level 2 → Level 3). Leaving a copy in the feature after promotion creates two sources of truth.
 
 ---
 
@@ -114,11 +142,17 @@ export const CARD_PADDING_CLASS_MAP = {
 
 This map is itself a repeated enum-like lookup (`"sm" | "md" | "lg"` → class), so it lives in `/constants/` per Rule G (§4G) — never inline inside the `.layout.tsx`, even though the layout is its only consumer today.
 
-### C. App-Wide Shared Types & Constants
+### C. App-Wide Shared Code (root `/hooks`, `/types`, `/constants`, `/utils`)
+
+The root is where cross-feature and app-wide code lives. Everything here obeys the same consumer-count rule: **≥2 features (or genuinely app-wide) → root; 1 feature → feature folder** (§0A).
 
 - **`/types/[name].type.ts`**: data models, shared interfaces, common unions used across ≥2 features (e.g. `layout.type.ts`, `user.type.ts`, `api.type.ts`).
 - **`/constants/[name].constant.ts`**: static configs, theme maps, shared constants (e.g. `layout.constant.ts`, `routes.constant.ts`).
-- **No barrel exports at this layer.** Unlike feature modules, `/components`, `/layouts`, `/types`, and `/constants` are always imported by their direct file path (e.g. `@/components/button/confirmButton.ui`), never through an `index.ts` re-export. A global barrel would force every consumer to pull in the whole layer's dependency graph and makes tree-shaking and promotion (§3B) harder to reason about.
+- **`/hooks/[name].hook.ts`**: hooks, store selectors, and effects reused by ≥2 features (e.g. `useMediaQuery.hook.ts`, `useDebouncedValue.hook.ts`). Feature-only hooks stay in `features/[feature]/hooks/`.
+- **`/utils/[name].util.ts`**: pure, dependency-light helpers reused by ≥2 features (e.g. `formatDate.util.ts`, `slugify.util.ts`). Feature-only helpers stay in `features/[feature]/utils/`.
+- **`/components/[module]/`** and **`/layouts/[category]/`** are also root shared layers: `.ui.tsx` primitives and `.layout.tsx` containers are global and never live under a feature (§0A, §1A, §1B).
+- **No barrel exports at this layer.** Unlike feature modules, `/components`, `/layouts`, `/hooks`, `/types`, `/constants`, and `/utils` are always imported by their direct file path (e.g. `@/components/button/confirmButton.ui`, `@/utils/formatDate.util`), never through an `index.ts` re-export. A global barrel would force every consumer to pull in the whole layer's dependency graph and makes tree-shaking and promotion (§3B) harder to reason about.
+- **One-way imports.** These root files must not import from `features/`; feature code flows into the root, not the other way around (§0A).
 
 ### D. Feature Components (`features/[feature]/components/[name]/`)
 
@@ -160,9 +194,29 @@ features/[feature]/
 
 Start with one focused file in any layer. When a component, hook, service, store, feature module, or utility accumulates independently changing responsibilities, split it into a named folder instead of allowing one file to become a navigation bottleneck. The split is justified when a file contains multiple rule families, transformations, formats, factories, state domains, UI subviews, or other responsibilities that developers need to find independently.
 
-The folder keeps one explicit public entrypoint named after the domain. Internal implementations live in semantic subfolders whose suffix describes what each file does. This is not a `utils`-only rule:
+The folder keeps one explicit public entrypoint named after the domain, at the same path depth as the flat file it replaced (`utils/[utilName]/[utilName].util.ts`, `hooks/[hookName]/[hookName].hook.ts`). The entrypoint is the folder's public surface — it holds the main implementation and re-exports the stable API; consumers import the entrypoint, never the internal files. Internal implementations live in semantic subfolders whose suffix describes what each file does, named `[main function name].[subfolder].ts` so the file says which entrypoint owns it and what role it plays:
 
 ```text
+[project]/utils/requestPolicy/        # root slice — shared by ≥2 features
+├── requestPolicy.util.ts             # public entrypoint: main implementation + re-exports
+└── rules/
+    ├── authentication.rule.ts
+    ├── authorization.rule.ts
+    └── rateLimit.rule.ts
+
+[project]/utils/layoutModel/          # root slice
+├── layoutModel.util.ts               # entrypoint
+└── geometries/
+    ├── bounds.geometry.ts
+    ├── collision.geometry.ts
+    └── grid.geometry.ts
+
+[project]/hooks/useSearch/            # root slice — shared by ≥2 features
+├── useSearch.hook.ts                 # entrypoint
+└── selectors/
+    ├── matchingItems.selector.ts
+    └── groupedResults.selector.ts
+
 features/[feature]/utils/requestPolicy/
 ├── requestPolicy.util.ts
 └── rules/
@@ -222,7 +276,9 @@ Use the implementation suffix, not a generic child marker, because it tells the 
 - `.selector.ts`: one derived-state selector
 - `.provider.ts`: one external provider implementation
 
-The public entrypoint re-exports the stable API. Consumers import the entrypoint, while sibling implementations import shared types/constants explicitly. Do not use generic names such as `helper.ts`, `common.ts`, `part.ts`, `runName.ts`, or `index.ts` to indicate that a file belongs to a larger module. Directory scope plus semantic suffix provides that relationship without hiding the implementation's responsibility.
+The public entrypoint (`[utilName].util.ts` / `[hookName].hook.ts`) is where the main exported function lives — it either implements the top-level logic or composes the internals — and it re-exports the stable API the subfolders provide. Consumers import the entrypoint; sibling implementations import shared types/constants explicitly. Do not use generic names such as `helper.ts`, `common.ts`, `part.ts`, `runName.ts`, or `index.ts` to indicate that a file belongs to a larger module. Directory scope plus semantic suffix provides that relationship without hiding the implementation's responsibility.
+
+This slicing rule is **the same at the root and inside a feature** — only the parent path differs (`[project]/utils/…` for cross-feature code, `features/[feature]/utils/…` for single-feature code). The folder name matches the entrypoint file name at both scopes.
 
 When a feature grows, use the same rule:
 
@@ -296,20 +352,24 @@ A nested sub-component (`features/[feature]/components/[parent]/components/[chil
 
 ### B. Promotion Scale
 
-| Level | Scope & usage                             | Location                                                      |
-| ----- | ----------------------------------------- | ------------------------------------------------------------- |
-| **1** | Private to 1 parent                       | `features/[feature]/components/[parent]/components/[child]/`  |
-| **2** | Used by ≥2 components in the same feature | `features/[feature]/components/[child]/`                      |
-| **3** | Used across multiple features             | Global: `/components/`, `/layouts/`, `/types/`, `/constants/` |
+| Level | Scope & usage                             | Location                                                                                        |
+| ----- | ----------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **1** | Private to 1 parent                       | `features/[feature]/components/[parent]/components/[child]/`                                    |
+| **2** | Used by ≥2 components in the same feature | `features/[feature]/components/[child]/` (or `features/[feature]/hooks\|types\|constants\|utils/`) |
+| **3** | Used across multiple features / app-wide  | Project root: `/components/`, `/layouts/`, `/hooks/`, `/types/`, `/constants/`, `/utils/`      |
 
 **Promoting Level 1 → Level 2**: As soon as a Level-1 child is needed anywhere else in the same feature (e.g. `calendarDropdown`, nested under `yearDashboard`, is also needed by `monthDashboard`), move it up to `features/dashboard/components/calendarDropdown/`. Both parents then import it from the feature level — never from each other's nested folders.
 
-**Promoting Level 2 → Level 3**: As soon as an element is needed across multiple features, move it to the matching global layer:
+**Promoting Level 2 → Level 3**: As soon as an element is needed across multiple features, move it to the matching root layer — a feature is left owning nothing that another feature also needs (§0A):
 
-- Visual primitives/tokens → `/components/[module]/[name].ui.tsx`
+- Visual primitives / `.ui.tsx` (raw CSS) → `/components/[module]/[name].ui.tsx`
 - Structural containers → `/layouts/[category]/[name].layout.tsx`
+- Shared hooks / selectors → `/hooks/[name].hook.ts`
 - Shared data types → `/types/[name].type.ts`
 - Shared constants/config → `/constants/[name].constant.ts`
+- Shared pure helpers → `/utils/[name].util.ts`
+
+Promotion means **moving**, not copying: update every import to the root path and delete the feature-scoped original in the same change.
 
 ---
 
