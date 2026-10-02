@@ -93,9 +93,13 @@ You used it to mean:
 Why it matters:
 [how the two meanings lead to different behavior or requirements]
 
+Code identifiers using the current term:
+• [every file/symbol carrying the old name — variables, types, fields, routes]
+
 Options:
 • Keep the canonical term with its documented meaning
 • Change the canonical definition (updates docs/context/... and every dependent doc)
+• Rename the term (updates the glossary AND every code identifier listed above in the same change)
 • Introduce a distinct term for the new concept
 ```
 

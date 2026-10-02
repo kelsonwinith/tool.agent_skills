@@ -1,10 +1,10 @@
 ---
 name: project-documentation
-description: "Portable, project-agnostic documentation guardian. Manages and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use this whenever you develop, modify, or refactor a feature, or when requirements, business rules, APIs, data models, architecture, or terminology change — even if the user never says 'docs' or 'documentation.' It grills the request's logic before writing (a design-tree interview), reconciles terminology against the canonical context, detects requirement mismatches and confirms before changing them, keeps every document describing the current system (removed features are removed from the docs), ships deterministic validators, and follows the numbered docs subfolder file convention. Works for any language, framework, or repo shape."
+description: "Portable, project-agnostic documentation guardian. Manages and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use this whenever you develop, modify, or refactor a feature, or when requirements, business rules, APIs, data models, architecture, or terminology change — even if the user never says 'docs' or 'documentation.' It grills the request's logic before writing (a design-tree interview), reconciles terminology against the canonical context (treating each glossary term as the concept's name in both docs and code, so a renamed term renames its code identifiers too), detects requirement mismatches and confirms before changing them, keeps every document describing the current system (removed features are removed from the docs), ships deterministic validators, and follows the numbered docs subfolder file convention. Works for any language, framework, or repo shape."
 license: MIT
 compatibility: "Requires Python 3 (standard library only) to run the bundled helpers in scripts/."
 metadata:
-  version: 1.3.0
+  version: 1.4.0
 ---
 
 # Project Documentation
@@ -53,6 +53,29 @@ Different people call the same thing different names — "account" vs "customer"
 
 Only project-specific terms belong here — not general programming concepts. One canonical term per concept; list every synonym in `Avoid`. When a term is resolved, write it down immediately. When someone uses a term that conflicts with the glossary, say so and reconcile it before going further. Multi-context repos keep one glossary per context plus a map (format in [references/formats.md](references/formats.md)).
 
+### A glossary term is the same word in docs and code
+
+The canonical term is not just prose vocabulary — it is the name that should appear in the codebase too. Variables, functions, types, DTO fields, API params, DB columns, and route segments all carry the same concept, so they should use the same canonical term. When docs say `Buyer` but code says `client`/`Client`/`clientId`, every reader has to translate between two vocabularies, and the drift is where bugs and misunderstandings hide.
+
+- The glossary term is the single source of truth for a concept's name. Pick the canonical English term, then use it consistently across docs **and** code.
+- Code identifiers follow the term, adjusted only for the language's casing convention — i.e. the term's own casing is not mutated beyond that. `Buyer` → `buyer`, `BuyerId`, `buyerId`, `useBuyer`, `fetchBuyers`; never `client`, `ClientId`, `customer`.
+- If a concept already has a different name in code, the mismatch is a reconciliation task, not something to leave in place.
+
+### When a term's meaning changes, rename it everywhere at once
+
+A glossary term is a living definition: requirements change, and the word often changes with them. Treat a rename as a change in the canonical context that must propagate in a single, synchronized move — never let a new name land in the glossary while the old name lingers in code, or new code while docs still describe the old concept.
+
+The rule: **changing a term means updating both its glossary entry and every code identifier that used the old name, in the same change.** No half-renames, no alias left behind, no "avoid" synonym still living in the source.
+
+Example — the requirement shifts so a `Client` is now called a `Buyer`:
+
+1. Update `docs/context/001-ubiquitous-language.md`: rename the term to `Buyer`, rewrite its meaning, and move `Client` into the `Avoid` column.
+2. Rename the code identifiers that carried `client` → `buyer` (`client` → `buyer`, `clientId` → `buyerId`, `ClientCard` → `BuyerCard`, types, API fields, DB references).
+3. Update every dependent document that mentioned the old term (requirements, business rules, architecture, data models).
+4. Flag the rename to the user as a terminology change, per the reconciliation rules below, before executing it.
+
+Skip the glossary-vs-code link and you get the exact confusion this skill exists to prevent: docs talking about buyers while the codebase still talks about clients. This skill defines *what you should do* — the ordering of the rename and the invariant that both sides stay in sync — not the mechanics of any specific refactoring tool; apply your project's own rename/refactor process to carry it out.
+
 ## Before you build
 
 A request is rarely complete, and its gaps are exactly where you'd guess wrong. So before writing docs or code, grill the request to a shared understanding:
@@ -64,14 +87,14 @@ A request is rarely complete, and its gaps are exactly where you'd guess wrong. 
 
 Then check the request against what's already documented:
 
-- **Terminology** — resolve the request's words against the glossary. Undefined terms get a proposed definition; conflicts get flagged.
+- **Terminology** — resolve the request's words against the glossary. Undefined terms get a proposed definition; conflicts get flagged. If a term's *meaning* changed, treat it as a rename: the glossary entry and every code identifier using the old word change together (§"When a term's meaning changes").
 - **Requirements** — if the request conflicts with a documented requirement, stop and show the mismatch, then wait for confirmation before changing anything.
 
 Message templates are in [references/formats.md](references/formats.md).
 
 ## Keeping docs in sync
 
-Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects, and every document should end up describing the system as it now stands. Keep names, status values, and rules identical across all of them, and preserve unrelated context when you edit.
+Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects, and every document should end up describing the system as it now stands. Keep names, status values, and rules identical across all of them — and identical to the codebase's identifiers, since the glossary term is also the code's name for that concept. Preserve unrelated context when you edit.
 
 Removals count as changes: when a feature, endpoint, field, or rule disappears, prune it from every document that mentioned it, and remove the whole document if nothing real is left in it.
 
