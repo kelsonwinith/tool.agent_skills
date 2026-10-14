@@ -11,6 +11,8 @@
   {"query": "make a confirmation dialog component i can reuse across the app", "should_trigger": true},
   {"query": "our components have no consistent structure, set up a sane folder convention", "should_trigger": true},
   {"query": "extract this inline styling into reusable ui primitives", "should_trigger": true},
+  {"query": "check if we have an existing badge before creating a new http method badge for the dropdown", "should_trigger": true},
+  {"query": "we have duplicate http badges across our cards and dropdowns, consolidate them into one shared primitive", "should_trigger": true},
   {"query": "explain how React's useEffect cleanup works", "should_trigger": false},
   {"query": "my Vue component's watcher isn't firing, help", "should_trigger": false},
   {"query": "write a python script to scrape product prices", "should_trigger": false},

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.0
+- Added §0B "Scan before creating: single source of truth for UI primitives (Zero duplication)" with a strict Scan → Evaluate → Ask → Reuse protocol.
+- Enforced scanning existing `/components/**` and `/layouts/**` before creating any UI component to eliminate duplicate components (e.g. separate badges across dropdowns and cards).
+- Added requirement to ask the user first when an existing UI primitive partially matches (e.g. missing HTTP methods or size variants) before updating or creating, ensuring users confirm whether to extend the shared primitive or create a new one.
+- Added canonical HTTP Method Badge case study showing a single `/components/badge/httpBadge.ui.tsx` primitive and `/constants/httpBadge.constant.ts` reused across display components and dropdown option selectors.
+- Added Rule 4K (Zero UI Duplication) and updated Decision Checklist (§0).
+
 ## 1.5.0
 - Growing-module slicing now explicitly applies to root `/utils` and `/hooks` (and every layer), not just feature folders. The public entrypoint keeps its flat-file path/depth (`utils/[utilName]/[utilName].util.ts`, `hooks/[hookName]/[hookName].hook.ts`) and re-exports the stable API; children are named `[main function name].[subfolder].ts`. Added root-scoped slicing examples and clarified entrypoint/child roles.
 

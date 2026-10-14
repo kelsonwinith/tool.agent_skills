@@ -1,6 +1,6 @@
 ---
 name: project-react-architecture
-description: "Use whenever building or editing ANY React/Next.js UI — cards, forms, dropdowns, dashboards, modals, buttons, tables — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; feature components in `features/[feature]/components/[name]/` use zero inline className styling; and every exported non-trivial function carries a fixed comment block."
+description: "Use whenever building or editing ANY React/Next.js UI — cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: scan existing `/components/**` and `/layouts/**` before creating any UI to eliminate duplicate components; ask the user first before updating or creating when an existing primitive partially matches; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; feature components in `features/[feature]/components/[name]/` use zero inline className styling; and every exported non-trivial function carries a fixed comment block."
 ---
 
 # React Clean Component Architecture
@@ -28,13 +28,17 @@ Every UI and code element belongs to exactly one layer. The project root holds e
 
 Before creating or touching any file, answer in order:
 
-1. **Is it purely visual/presentational with no domain logic?** → `.ui.tsx` in `/components/[module]/` (§1A).
-2. **Is it pure structure (flex/grid/spacing) with no visuals or logic?** → `.layout.tsx` in `/layouts/[category]/` (§1B).
-3. **Does it connect business state/hooks to UI + Layout primitives?** → feature component in `features/[feature]/components/[name]/` (§1D).
-4. **Is it a type, constant, hook, or helper?** Decide by consumer count, not by convenience:
+1. **Does a matching or partial UI primitive / layout container already exist?** → Scan `/components/**` and `/layouts/**` BEFORE creating any new UI (§0B).
+   - If an exact match exists → reuse it; do not create duplicate UI components.
+   - If a partial match exists (e.g. missing HTTP method, prop, or variant) → **ask the user first** what needs to be updated or created before changing or adding files.
+   - If none exists → design a canonical primitive at `/components/[module]/` intended for reuse across both display components and pickers/dropdowns.
+2. **Is it purely visual/presentational with no domain logic?** → `.ui.tsx` in `/components/[module]/` (§1A).
+3. **Is it pure structure (flex/grid/spacing) with no visuals or logic?** → `.layout.tsx` in `/layouts/[category]/` (§1B).
+4. **Does it connect business state/hooks to UI + Layout primitives?** → feature component in `features/[feature]/components/[name]/` (§1D).
+5. **Is it a type, constant, hook, or helper?** Decide by consumer count, not by convenience:
    - Used by **≥2 features or app-wide** → **root project**: `/types`, `/constants`, `/hooks`, `/utils` (see §0A).
    - Used by **1 feature only** → feature-scoped: `features/[feature]/types|constants|hooks|utils/`.
-5. **Is it a sub-component used by exactly one parent?** → Nest it (§3), then re-check the promotion scale (§3B) the moment a second consumer appears.
+6. **Is it a sub-component used by exactly one parent?** → Nest it (§3), then re-check the promotion scale (§3B) the moment a second consumer appears.
 
 If a file would mix two of these concerns (e.g. styling + business logic), split it — that split is the point of this architecture, not an edge case to work around.
 
@@ -61,6 +65,113 @@ Rules that keep this honest:
 - **Root files import siblings by direct path** (`@/utils/formatDate.util`, `@/types/user.type`), never through a global `index.ts` barrel (§1C).
 - **When a feature-scoped file gains a second feature consumer, promote it in the same change** — move it from `features/[feature]/…` up to the matching root folder and update every import (§3B, Level 2 → Level 3). Leaving a copy in the feature after promotion creates two sources of truth.
 
+### 0B. Scan before creating: single source of truth for UI primitives (Zero duplication)
+
+A frequent architectural failure is recreating duplicate UI components for the same visual concept across different placements — for example, building an HTTP method badge for an endpoint detail card, and then building a second, separate HTTP badge component for a dropdown selector, and a third inside an API log table. This leads to duplicate styling, inconsistent colors/padding across screens, and an unnecessarily heavy app.
+
+Every recurring visual element must have **exactly one canonical UI primitive** in `[project]/components/[module]/`.
+
+Follow the **Scan → Evaluate → Ask → Reuse** protocol before writing any UI code:
+
+#### 1. Mandatory Inventory Scan
+Before creating any `.ui.tsx` file or building a feature sub-component that renders visual tags, badges, buttons, inputs, or indicators:
+- Scan `[project]/components/**` (and `/layouts/**`, `/constants/**`) to see what primitives already exist.
+- Look across component modules (e.g. `/components/badge/`, `/components/tag/`, `/components/button/`, `/components/indicator/`).
+
+#### 2. Evaluate: Exact Fit vs. Extension
+- **Exact match**: Reuse the existing primitive directly across all features, cards, dialogs, and dropdowns.
+- **Partial match** (component exists, but lacks a required variant, size, or supported value — e.g. `httpBadge` exists with `GET`/`POST`, but now needs `PUT`/`PATCH`/`DELETE`, or a compact `size="sm"` for dropdown menus):
+  - ❌ **NEVER** create a second, placement-specific duplicate (e.g. `dropdownHttpBadge.ui.tsx`, `endpointBadge.ui.tsx`, or inline badge markup inside a feature).
+  - ❌ **NEVER** make breaking alterations silently.
+  - ✅ **Ask the user first**: Explain what already exists, specify what is missing, and ask whether to update the existing shared primitive or create a new one.
+
+> **Prompting pattern when an update is needed:**
+> "Found existing UI primitive at `[project]/components/badge/httpBadge.ui.tsx` supporting `GET` and `POST`. To support our method selector dropdown and API views with `PUT`, `PATCH`, and `DELETE` (and a compact `size="sm"`), should we update `httpBadge.ui.tsx` and its constants map, or is a separate primitive preferred? (Recommended: update the existing primitive to keep badge styling consistent app-wide)."
+
+#### 3. Canonical Example: Shared HTTP Method Badge
+Instead of duplicating badges across dropdowns and detail views, define one shared primitive backed by constants:
+
+```ts
+// /constants/httpBadge.constant.ts
+export const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
+export type HttpMethod = (typeof HTTP_METHODS)[number];
+
+export const HTTP_METHOD_STYLE_MAP: Record<
+  HttpMethod,
+  { bg: string; text: string; border: string }
+> = {
+  GET: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/20" },
+  POST: { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500/20" },
+  PUT: { bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/20" },
+  PATCH: { bg: "bg-orange-500/10", text: "text-orange-500", border: "border-orange-500/20" },
+  DELETE: { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500/20" },
+};
+
+export const HTTP_BADGE_SIZE_MAP = {
+  sm: "px-1.5 py-0.5 text-[10px]",
+  md: "px-2 py-1 text-xs",
+} as const;
+```
+
+```tsx
+// /components/badge/httpBadge.ui.tsx
+import {
+  HTTP_METHOD_STYLE_MAP,
+  HTTP_BADGE_SIZE_MAP,
+  type HttpMethod,
+} from "@/constants/httpBadge.constant";
+
+export interface HttpBadgeProps {
+  method: HttpMethod;
+  size?: "sm" | "md";
+}
+
+export default function HttpBadge({ method, size = "md" }: HttpBadgeProps) {
+  const styles = HTTP_METHOD_STYLE_MAP[method];
+  return (
+    <span
+      className={`inline-flex items-center font-mono font-semibold rounded border ${styles.bg} ${styles.text} ${styles.border} ${HTTP_BADGE_SIZE_MAP[size]}`}
+    >
+      {method}
+    </span>
+  );
+}
+```
+
+Both features pick and reuse the same canonical primitive:
+
+```tsx
+// /features/apiDocs/components/endpointCard/endpointCard.component.tsx
+// Usage in feature display: just pick from the shared badge primitive
+import HttpBadge from "@/components/badge/httpBadge.ui";
+
+export default function EndpointCard({ method, path }: EndpointCardProps) {
+  return (
+    <CardLayout>
+      <HttpBadge method={method} />
+      <PathText>{path}</PathText>
+    </CardLayout>
+  );
+}
+```
+
+```tsx
+// /features/apiTester/components/methodDropdown/methodDropdown.component.tsx
+// Usage in dropdown option: reuses the exact same badge primitive with compact size
+import HttpBadge from "@/components/badge/httpBadge.ui";
+
+export default function MethodOption({ method, label }: MethodOptionProps) {
+  return (
+    <OptionLayout>
+      <HttpBadge method={method} size="sm" />
+      <OptionLabel>{label}</OptionLabel>
+    </OptionLayout>
+  );
+}
+```
+
+Neither the dropdown nor the endpoint card re-invents a badge. The design is identical, styles are centralized, and the app avoids duplicate UI code.
+
 ---
 
 ## 1. Core Architecture Layers
@@ -70,6 +181,7 @@ Rules that keep this honest:
 Self-contained, presentational visual building blocks grouped by module (button, text, input, badge).
 
 - **Rule**: Exactly 1 file per component, holding its Props interface, styling, and render. No feature/business logic. This is the only layer where raw CSS/Tailwind classes live.
+- **Context-neutral & Reusable**: Primitives are placement-agnostic. Never create placement-bound variations like `dropdownHttpBadge.ui.tsx` or `tableBadge.ui.tsx`. Pass sizing, variants, or slot props so the same primitive serves cards, dropdowns, tables, and modals (§0B).
 - **Examples**: `/components/button/primaryButton.ui.tsx`, `/components/text/dimmedText.ui.tsx`
 
 ```tsx
@@ -471,6 +583,10 @@ Remove unused imports, params, variables, and types before a file is done — de
 ### J. Prop handlers are actions, not DOM events
 
 Name handlers for what the caller does (`onSave`, `onDelete`, `onSelectUser`), never for the DOM event (`onClick`, `onSubmit`). They receive plain data (an id, a record, a value), not a `SyntheticEvent` — DOM wiring stays inside the hook.
+
+### K. Zero UI Duplication (Single Source of Truth for Visuals)
+
+Never create duplicate components or parallel visual primitives for the same concept (e.g. separate badges, status dots, or avatar pills across dropdowns and pages). Always scan `/components/**` first (§0B). If a primitive needs additional capabilities (new variants, sizes, or supported values), ask the user first before updating or creating, then update the canonical primitive at `/components/[module]/[name].ui.tsx` so all consumers share the same consistent design.
 
 ---
 

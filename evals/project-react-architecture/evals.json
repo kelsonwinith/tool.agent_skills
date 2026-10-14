@@ -26,6 +26,19 @@
         "Split files use semantic suffixes such as .geometry.ts",
         "No generic file names like helper.ts, common.ts, or index.ts"
       ]
+    },
+    {
+      "id": 2,
+      "name": "reuse-ui-primitive-http-badge",
+      "prompt": "We need to display an HTTP method badge (GET, POST, PUT, DELETE, PATCH) inside an API endpoint card, and we also need to show HTTP method badges inside a method-selector dropdown. Follow the project's component architecture.",
+      "expected_output": "Scans for or creates a single canonical UI primitive (/components/badge/httpBadge.ui.tsx backed by /constants/httpBadge.constant.ts). Both the endpoint card feature and the method selector dropdown feature import and reuse this single shared HttpBadge primitive instead of creating separate or duplicated badge components.",
+      "files": [],
+      "assertions": [
+        "Creates a single shared HTTP badge UI primitive in /components/badge/ rather than duplicating badge components",
+        "Reuses the shared HTTP badge in both the endpoint card and the dropdown option component",
+        "Uses shared constants for method style and size mappings in /constants/",
+        "No duplicate badge UI components or inline badge styling"
+      ]
     }
   ]
 }
