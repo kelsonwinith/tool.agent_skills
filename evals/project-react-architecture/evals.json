@@ -39,6 +39,20 @@
         "Uses shared constants for method style and size mappings in /constants/",
         "No duplicate badge UI components or inline badge styling"
       ]
+    },
+    {
+      "id": 3,
+      "name": "nextjs-page-router-boundary",
+      "prompt": "Create the Next.js App Router `/app/users/page.tsx` route that renders a page heading, the user invite modal, and the user directory from the `users` feature. Follow the project's component architecture.",
+      "expected_output": "A Server-Side Rendered (SSR / Server Component, no `'use client'`) Next.js route file `/app/users/page.tsx` acting like a feature component view with zero inline `className` or `style` attributes, importing only UI primitives from `/components/[module]/[name].ui.tsx`, layout containers from `/layouts/[category]/[name].layout.tsx`, and feature components exported from `/features/users/users.feature.ts` (never deep-importing `/features/users/components/**`).",
+      "files": [],
+      "assertions": [
+        "The Next.js page.tsx file is a Server Component (SSR) and does NOT contain 'use client'",
+        "The Next.js page.tsx file contains zero className or inline style attributes",
+        "The page imports feature components exclusively from @/features/users/users.feature rather than deep-importing internal component paths",
+        "Visual elements and structural wrappers on the page use .ui.tsx primitives and .layout.tsx containers",
+        "The users.feature.ts entrypoint exports the public feature components consumed by the page"
+      ]
     }
   ]
 }

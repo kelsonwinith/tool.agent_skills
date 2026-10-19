@@ -1,14 +1,15 @@
 ---
 name: project-react-architecture
-description: "Use whenever building or editing ANY React/Next.js UI — cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: scan existing `/components/**` and `/layouts/**` before creating any UI to eliminate duplicate components; ask the user first before updating or creating when an existing primitive partially matches; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; feature components in `features/[feature]/components/[name]/` use zero inline className styling; and every exported non-trivial function carries a fixed comment block."
+description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: scan existing `/components/**` and `/layouts/**` before creating any UI to eliminate duplicate components; ask the user first before updating or creating when an existing primitive partially matches; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
 ---
 
 # React Clean Component Architecture
 
-Every UI and code element belongs to exactly one layer. The project root holds everything that is **shared across features or used app-wide**; `features/` holds only what belongs to a single domain:
+Every UI and code element belongs to exactly one layer. The project root holds everything that is **shared across features or used app-wide**; `features/` holds only what belongs to a single domain; and Next.js route/page files act purely as Server-Side Rendered (SSR), zero-`className` composition shells:
 
 ```text
 [project]/
+├── app/**/{page,layout,loading}.tsx       # Next.js SSR Routes (Server Components, ZERO inline className; imports only .ui, .layout, & [feature].feature)
 ├── components/[module]/[name].ui.tsx      # Global UI System Primitives (ONLY place raw CSS lives)
 ├── layouts/[category]/[name].layout.tsx   # Pure Structural Containers (categorized)
 ├── hooks/[name].hook.ts                   # App-wide hooks used by ≥2 features
@@ -21,7 +22,7 @@ Every UI and code element belongs to exactly one layer. The project root holds e
     ├── types/                             # Feature-scoped domain types
     ├── constants/                         # Feature-scoped constants
     ├── utils/                             # Feature-scoped helpers
-    └── [feature].feature.ts               # Public feature entrypoint
+    └── [feature].feature.ts               # Public feature entrypoint (only path pages/features may import)
 ```
 
 ## 0. Decision Checklist (read this first)
@@ -35,10 +36,11 @@ Before creating or touching any file, answer in order:
 2. **Is it purely visual/presentational with no domain logic?** → `.ui.tsx` in `/components/[module]/` (§1A).
 3. **Is it pure structure (flex/grid/spacing) with no visuals or logic?** → `.layout.tsx` in `/layouts/[category]/` (§1B).
 4. **Does it connect business state/hooks to UI + Layout primitives?** → feature component in `features/[feature]/components/[name]/` (§1D).
-5. **Is it a type, constant, hook, or helper?** Decide by consumer count, not by convenience:
+5. **Is it a Next.js page or router file (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)?** → keep it **Server-Side Rendered (SSR / Server Component — never `'use client'`)**, treat it like a feature component view with **zero custom `className`**, and import **only** `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` — never deep-import internal `features/[feature]/components/**` (§1E, §2).
+6. **Is it a type, constant, hook, or helper?** Decide by consumer count, not by convenience:
    - Used by **≥2 features or app-wide** → **root project**: `/types`, `/constants`, `/hooks`, `/utils` (see §0A).
    - Used by **1 feature only** → feature-scoped: `features/[feature]/types|constants|hooks|utils/`.
-6. **Is it a sub-component used by exactly one parent?** → Nest it (§3), then re-check the promotion scale (§3B) the moment a second consumer appears.
+7. **Is it a sub-component used by exactly one parent?** → Nest it (§3), then re-check the promotion scale (§3B) the moment a second consumer appears.
 
 If a file would mix two of these concerns (e.g. styling + business logic), split it — that split is the point of this architecture, not an edge case to work around.
 
@@ -295,14 +297,53 @@ features/[feature]/
 
 **`'use client'` / `'use server'` placement**:
 
+- **Next.js `page.tsx` and `layout.tsx` are always Server-Side Rendered (Server Components)** — **never** place `'use client'` on a `page.tsx` or `layout.tsx` file (§1E). Client interactivity is pushed down to individual feature `.component.tsx` leaves.
 - `.ui.tsx` and `.layout.tsx` files are presentational and should stay server-renderable by default — add `'use client'` only if the primitive itself needs browser APIs or interactivity that can't be lifted to the caller (rare; prefer passing handlers down instead).
-- `.component.tsx` gets `'use client'` at the very top of the file whenever its `.hook.ts` uses state, effects, or browser-only APIs — which is the common case for feature components.
-- `.hook.ts`, `.util.ts`, and `.type.ts` never declare `'use client'`/`'use server'` themselves; the directive belongs on the `.component.tsx` (or route file) that consumes them, not on every file in the chain.
+- `.component.tsx` gets `'use client'` at the very top of the file whenever its `.hook.ts` uses state, effects, or browser-only APIs — which is the common case for interactive feature components.
+- `.hook.ts`, `.util.ts`, and `.type.ts` never declare `'use client'`/`'use server'` themselves; the directive belongs on the `.component.tsx` that consumes them, not on every file in the chain.
 - `.service.ts` gets `'use server'` only when it is a Server Action being called directly from a client component; plain fetch-based services making calls from the server need neither directive.
+
+### E. Next.js Page & Router Components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)
+
+Next.js route entrypoints (`page.tsx`, `layout.tsx`, `loading.tsx`, `not-found.tsx`, and Pages Router files) **must be Server-Side Rendered (SSR) and act like feature component views**:
+
+- **Always Server-Side Rendered (Server Component — NEVER `'use client'`)**:
+  - `app/**/page.tsx` and `app/**/layout.tsx` must **never** declare `'use client'`. Keeping pages on the server guarantees SSR html delivery, allows `async` server component execution (awaiting route `params`/`searchParams` or server data), preserves Next.js `metadata` / `generateMetadata` exports, and prevents the entire route tree from being forced into the client bundle.
+  - Client interactivity (`useState`, `useEffect`, event handlers) belongs strictly inside the feature's `.component.tsx` + `.hook.ts` leaf components, which are imported into the SSR page via `[feature].feature.ts`.
+- **Zero custom `className` or inline `style`**: A page or route layout must never contain raw Tailwind classes, CSS utility strings, or styled HTML wrappers (`<main className="p-6">`, `<div className="flex gap-4">`). All visual and structural framing comes from `.ui.tsx` primitives and `.layout.tsx` containers (§2).
+- **Strict Import Allowlist**: A Next.js page or router component may **only** import UI and components from:
+  1. **UI System Primitives**: `@/components/[module]/[name].ui` (`.ui.tsx`)
+  2. **Public Feature Entrypoints**: `@/features/[feature]/[feature].feature` (`[feature].feature.ts`)
+  3. **Layout Containers** (when structural framing is needed): `@/layouts/[category]/[name].layout` (`.layout.tsx`)
+- **Never deep-import inside a feature**: Route files must **never** import directly from `features/[feature]/components/[name]/[name].component.tsx`, `features/[feature]/hooks/`, or `features/[feature]/utils/`. Any feature component rendered on a page must be exported from `[feature].feature.ts` and imported from that `[feature].feature` entrypoint.
+- **No inline business logic or client hooks in `page.tsx`**: Keep route files as thin SSR composition shells. Domain state, event handlers, and feature logic belong inside the feature's own `.component.tsx` + `.hook.ts`, exposed via `[feature].feature.ts`.
+
+```ts
+// /features/users/users.feature.ts
+export { default as UserDirectory } from "./components/userDirectory/userDirectory.component";
+export { default as UserInviteModal } from "./components/userInviteModal/userInviteModal.component";
+```
+
+```tsx
+// /app/users/page.tsx (Server Component / SSR — NO "use client")
+import PageLayout from "@/layouts/page/pageLayout.layout";
+import HeadingText from "@/components/text/headingText.ui";
+import { UserDirectory, UserInviteModal } from "@/features/users/users.feature";
+
+export default async function UsersPage() {
+  return (
+    <PageLayout>
+      <HeadingText>Team Members</HeadingText>
+      <UserInviteModal />
+      <UserDirectory />
+    </PageLayout>
+  );
+}
+```
 
 ---
 
-## 1E. Growing Module Slicing
+## 1F. Growing Module Slicing
 
 Start with one focused file in any layer. When a component, hook, service, store, feature module, or utility accumulates independently changing responsibilities, split it into a named folder instead of allowing one file to become a navigation bottleneck. The split is justified when a file contains multiple rule families, transformations, formats, factories, state domains, UI subviews, or other responsibilities that developers need to find independently.
 
@@ -408,13 +449,16 @@ Do not split cohesive small modules only to satisfy a folder pattern. Slice a mo
 
 ---
 
-## 2. The No-Inline-`className` Rule
+## 2. The No-Inline-`className` Rule (Feature Components & Next.js Pages/Routers)
 
-`.component.tsx` files must contain **zero inline styles and zero `className` attributes**. All visual styling comes from composing UI System components (`/components/[module]/`) and Layout Containers (`/layouts/[category]/`).
+Both `.component.tsx` files **and Next.js page/router files** (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) must contain **zero inline styles and zero `className` attributes**.
+- All visual styling and structure come from composing UI System components (`/components/[module]/[name].ui.tsx`) and Layout Containers (`/layouts/[category]/[name].layout.tsx`).
+- Furthermore, Next.js page/router files must be **Server-Side Rendered (Server Components — never `'use client'`)** and may **only** import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` — never deep-importing internal feature files (§1E).
 
-### ❌ BAD — ad-hoc inline styling
+### ❌ BAD — ad-hoc inline styling in a feature component or Next.js page
 
 ```tsx
+// ❌ BAD Feature Component: raw HTML tags and custom className
 export default function UserCard({ user, onDelete }: UserCardProps) {
   return (
     <div className="flex flex-col gap-2 rounded-lg border bg-card p-4">
@@ -431,9 +475,25 @@ export default function UserCard({ user, onDelete }: UserCardProps) {
 }
 ```
 
-### ✅ GOOD — composing UI primitives and Layouts
+```tsx
+// ❌ BAD Next.js Page (app/users/page.tsx): "use client" on page + custom className + deep feature import
+"use client";
+import UserCard from "@/features/users/components/userCard/userCard.component";
+
+export default function UsersPage() {
+  return (
+    <main className="mx-auto flex max-w-5xl flex-col gap-6 p-8">
+      <h1 className="text-2xl font-bold tracking-tight">Users</h1>
+      <UserCard />
+    </main>
+  );
+}
+```
+
+### ✅ GOOD — composing UI primitives, Layouts, and `[feature].feature.ts`
 
 ```tsx
+// ✅ GOOD Feature Component (/features/users/components/userCard/userCard.component.tsx)
 "use client";
 import type { UserCardProps } from "./userCard.type";
 import { useUserCard } from "./userCard.hook";
@@ -450,6 +510,22 @@ export default function UserCard(props: UserCardProps) {
       <ParagraphText bold>{user.name}</ParagraphText>
       <DeleteButton onClick={handleDelete}>Delete</DeleteButton>
     </CardLayout>
+  );
+}
+```
+
+```tsx
+// ✅ GOOD Next.js Page (/app/users/page.tsx): SSR Server Component (no "use client"), zero className, imports only .ui, .layout, and [feature].feature
+import PageLayout from "@/layouts/page/pageLayout.layout";
+import HeadingText from "@/components/text/headingText.ui";
+import { UserCard } from "@/features/users/users.feature";
+
+export default async function UsersPage() {
+  return (
+    <PageLayout>
+      <HeadingText>Users</HeadingText>
+      <UserCard />
+    </PageLayout>
   );
 }
 ```
@@ -588,6 +664,10 @@ Name handlers for what the caller does (`onSave`, `onDelete`, `onSelectUser`), n
 
 Never create duplicate components or parallel visual primitives for the same concept (e.g. separate badges, status dots, or avatar pills across dropdowns and pages). Always scan `/components/**` first (§0B). If a primitive needs additional capabilities (new variants, sizes, or supported values), ask the user first before updating or creating, then update the canonical primitive at `/components/[module]/[name].ui.tsx` so all consumers share the same consistent design.
 
+### L. Next.js Page & Router Boundary (SSR Only, Zero `className`, Strict Imports)
+
+Next.js page and router components (`app/**/page.tsx`, `app/**/layout.tsx`, `app/**/loading.tsx`, `app/**/not-found.tsx`, `pages/**`) must be **Server-Side Rendered (Server Components — never `'use client'`)** and obey the exact same view rules as `.component.tsx`: **zero custom `className` or inline `style`**, and they may **only** import UI primitives from `/components/[module]/[name].ui.tsx`, structural containers from `/layouts/[category]/[name].layout.tsx`, and feature components exported by `features/[feature]/[feature].feature.ts` (§1E, §2). Never add `'use client'` to a page or route layout, and never deep-import internal feature files (`features/[feature]/components/**`) into a route file.
+
 ---
 
 ## 5. Function Comments (Lean Doc Block)
@@ -610,11 +690,11 @@ Every non-trivial exported function gets exactly one comment block directly abov
 
 Rules:
 
-- **Hard ceiling of 5 lines.** If the block needs more, the function is doing too much — split it (§1E) instead of writing more comment.
+- **Hard ceiling of 5 lines.** If the block needs more, the function is doing too much — split it (§1F) instead of writing more comment.
 - **Delete test**: if a line only restates the name and types (`param: user — the user`), remove it. Never document a parameter whose meaning matches its name and type.
 - **Intent goes in `what`.** Fold the reason the function exists into the summary when it isn't obvious; never narrate the mechanics step by step.
 - **Only exported, non-trivial functions.** Skip one-line getters and pass-through wrappers — a comment that restates the signature is noise, not documentation, the same instinct as §4I: a declaration that earns nothing stays out.
-- **Never on `.component.tsx` views.** The JSX plus the paired hook's `what` line is the documentation for a view — per §2, a view's meaning should come from composition, not prose above it. If a view needs a comment to be understood, split it (§1E) instead of explaining it.
+- **Never on `.component.tsx` or Next.js page/router views.** The JSX plus the paired hook's `what` line is the documentation for a view — per §2, a view's meaning should come from composition, not prose above it. If a view needs a comment to be understood, split it (§1F) instead of explaining it.
 - **A section banner is not a function comment.** Existing `// ===== SECTION =====` separators group code; they do not replace the doc block on each function.
 - **Do not restate the file suffix.** `.rule.ts`, `.geometry.ts`, `.service.ts` already say what kind of function it is — the comment states what this specific one does.
 - **Function level only — never scribble comments on code lines.** The doc block lives in exactly one place: directly above the function declaration. Do **not** drop `//` comments on individual statements, branches, assignments, or expressions inside a function body. `// check if user is null`, `// loop through items`, `// increment counter`, `// return the result` are all noise — the code already states them, and each one risks drifting out of sync when the line changes. If a code line genuinely cannot be understood without prose, that is a signal to extract it into a named function/helper with its own doc block (or give it a descriptive name), not to annotate the line. The only permitted inline comment in a file is the single explanatory `//` above a non-obvious `.constant.ts` value (see below); everything else must be function-level.

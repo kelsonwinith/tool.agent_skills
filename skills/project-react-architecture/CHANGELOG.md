@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.0
+- Added §1E "Next.js Page & Router Components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)" and Rule 4L.
+- Enforced that Next.js page and router components are always Server-Side Rendered (Server Components — never `'use client'`) and act like feature component views with zero custom `className` or inline `style` attributes.
+- Enforced strict import boundaries for page/router files: may only import `.ui.tsx` primitives (`/components/[module]/[name].ui.tsx`), `.layout.tsx` containers (`/layouts/[category]/[name].layout.tsx`), and public feature components exported from `features/[feature]/[feature].feature.ts` (never deep-importing internal `features/[feature]/components/**` files).
+- Updated §1D (`'use client'` placement) and §2 (The No-Inline-`className` Rule) with BAD vs. GOOD Next.js SSR `page.tsx` examples and updated the Decision Checklist (§0).
+
 ## 1.6.0
 - Added §0B "Scan before creating: single source of truth for UI primitives (Zero duplication)" with a strict Scan → Evaluate → Ask → Reuse protocol.
 - Enforced scanning existing `/components/**` and `/layouts/**` before creating any UI component to eliminate duplicate components (e.g. separate badges across dropdowns and cards).
