@@ -1,15 +1,14 @@
-# Pre-Implementation File Tree & Confirmation Gate
+# Pre-Implementation File Tree Gate
 
-Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*, *"refactor Z..."*), **do not jump straight to creating or editing files**, and **do not output long multi-section prose explanations**.
+Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*, *"refactor Z..."*), **do not jump straight to creating or editing files**, and **do not output prose explanations or multiple-choice questionnaires**.
 
-Keep the pre-implementation confirmation response strictly limited to **two sections only**:
-1. `### Proposed File Tree` (with a brief inline `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE]` comment per file)
-2. `### Confirmation` (numbered questions `1.`, `2.`, ... with lettered choices `a.`, `b.`, `c.`, ... where the recommended choice has `(Recommended)` and the **final choice is always `[last letter]. Type your own answer`**)
+Keep the pre-implementation response strictly limited to **the editing tree only**:
+- `### Proposed File Tree` (with a brief inline `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE] — what it does` comment per file)
 
 ## Table of Contents
 1. [Step 1: Internal Inventory Scan](#step-1-internal-inventory-scan)
 2. [Step 2: Internal Layer & Scope Decision Matrix](#step-2-internal-layer--scope-decision-matrix)
-3. [Step 3: Output Format — `### Proposed File Tree` & `### Confirmation` ONLY](#step-3-output-format--proposed-file-tree--confirmation-only)
+3. [Step 3: Output Format — `### Proposed File Tree` ONLY](#step-3-output-format--proposed-file-tree-only)
 
 ---
 
@@ -43,19 +42,9 @@ Decide the placement and tag (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DEL
 
 ---
 
-## Step 3: Output Format — `### Proposed File Tree` & `### Confirmation` ONLY
+## Step 3: Output Format — `### Proposed File Tree` ONLY
 
-**Do NOT include a separate "Architectural Decisions" prose section.** Output **only** `### Proposed File Tree` and `### Confirmation`.
-
-### Strict Rules for `### Confirmation` (No Random or Filler Questions!)
-- **Only ask clarifying questions when genuinely needed**:
-  1. The user's prompt has a real functional/requirement ambiguity that cannot be inferred from the codebase, **OR**
-  2. An existing shared file is being modified (`[UPDATE]`), moved (`[PROMOTE]`), or removed (`[DELETE]`) and requires user verification (e.g. extending an existing `/components/badge/httpBadge.ui.tsx` primitive).
-- **NEVER ask random or filler architectural questions** about things already settled by the prompt or by these skill rules (for example, NEVER ask *"Should we export the components from `.feature.ts`?"*, *"Should the page be an SSR Server Component?"*, or *"Should we put styles in `.ui.tsx`?"* — those are mandatory architecture rules, not user questions!).
-- **When the prompt is clear and no existing file modification needs verification**: `### Confirmation` contains **only a single question**: `1. Proceed with implementing this file tree?`.
-- Format every question sequentially (`1.`, `2.`, ...) with lettered options (`a.`, `b.`, `c.`, ...), mark the recommended choice with `(Recommended)`, and **always make the final option `[last letter]. Type your own answer`**.
-
-### Template A: When Extending/Deleting an Existing File or Clarifying an Ambiguity
+**Do NOT include a separate "Architectural Decisions" prose section or multiple-choice question list.** Output **only** `### Proposed File Tree` with the `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE]` inline comments and wait for user confirmation before writing code:
 
 ```markdown
 ### Proposed File Tree
@@ -82,48 +71,4 @@ Decide the placement and tag (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DEL
                 ├── methodDropdown.hook.ts                 # [NEW] Dropdown selection state & handlers
                 └── methodDropdown.type.ts                 # [NEW] Props & dropdown types
 ```
-
-### Confirmation
-
-1. `httpBadge.ui.tsx` currently only supports `GET` and `POST`. How should we support `PUT`, `PATCH`, `DELETE`, and the compact dropdown badge size?
-   a. Update `/components/badge/httpBadge.ui.tsx` and `/constants/httpBadge.constant.ts` with `PUT`/`PATCH`/`DELETE` and `size="sm"` (Recommended)
-   b. Keep `httpBadge.ui.tsx` unchanged and create a separate badge component
-   c. Type your own answer
-
-2. Proceed with implementing this file tree?
-   a. Yes, proceed with implementation (Recommended)
-   b. Type your own answer
-```
-
-### Template B: When the Prompt Is Clear and No Existing Shared File Needs Verification
-
-```markdown
-### Proposed File Tree
-
-```text
-[project]/
-├── app/users/
-│   └── page.tsx                                           # [NEW] SSR Server Component page shell (zero className)
-├── components/text/
-│   └── headingText.ui.tsx                                 # [REUSE] Canonical heading primitive
-├── layouts/page/
-│   └── pageLayout.layout.tsx                              # [REUSE] Page structural wrapper
-└── features/users/
-    ├── users.feature.ts                                   # [NEW] Public feature entrypoint exporting UserDirectory & UserInviteModal
-    └── components/
-        ├── userDirectory/
-        │   ├── userDirectory.component.tsx                # [NEW] Pure JSX view (zero className)
-        │   ├── userDirectory.hook.ts                      # [NEW] Directory state & handlers
-        │   └── userDirectory.type.ts                      # [NEW] Directory props & types
-        └── userInviteModal/
-            ├── userInviteModal.component.tsx              # [NEW] Pure JSX view (zero className)
-            ├── userInviteModal.hook.ts                    # [NEW] Modal open/form state & handlers
-            └── userInviteModal.type.ts                    # [NEW] Modal props & types
-```
-
-### Confirmation
-
-1. Proceed with implementing this file tree?
-   a. Yes, proceed with implementation (Recommended)
-   b. Type your own answer
 ```

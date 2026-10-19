@@ -124,8 +124,8 @@ Always scan `/components/**` before creating UI; extend canonical primitives (af
 ### L. Next.js Page & Router Boundary
 Next.js pages/layouts are always SSR Server Components (no `'use client'`), have zero custom `className`, and only import `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
 
-### M. Pre-Implementation File Tree & Confirmation Gate
-Always output **only** `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]` + short inline comment) and `### Confirmation` (numbered questions `1, 2...` with lettered choices `a. ... (Recommended)`, `b. ...`, and final choice `[last letter]. Type your own answer`) before writing code. Only ask questions when the prompt is unclear or an existing file change (`[UPDATE]`, `[PROMOTE]`, `[DELETE]`) requires verification — never ask random/filler architectural questions.
+### M. Pre-Implementation File Tree Gate
+Always output **only** `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]` + short inline comment) before writing code, with no extra prose sections or questionnaires.
 
 ---
 

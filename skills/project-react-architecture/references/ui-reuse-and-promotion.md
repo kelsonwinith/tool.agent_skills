@@ -2,7 +2,7 @@
 
 ## Table of Contents
 1. [Shared Code Lives at the Project Root (Never Inside a Feature)](#shared-code-lives-at-the-project-root-never-inside-a-feature)
-2. [Zero UI Duplication Protocol (Scan → Evaluate → Ask → Reuse)](#zero-ui-duplication-protocol-scan--evaluate--ask--reuse)
+2. [Zero UI Duplication Protocol (Scan → Evaluate → Reuse / Update)](#zero-ui-duplication-protocol-scan--evaluate--reuse--update)
 3. [Canonical Case Study: Shared HTTP Method Badge](#canonical-case-study-shared-http-method-badge)
 4. [Sub-Component Nesting Invariant & 3-Level Promotion Scale](#sub-component-nesting-invariant--3-level-promotion-scale)
 
@@ -29,7 +29,7 @@ If a `.type.ts`, `.constant.ts`, `.hook.ts`, `.util.ts`, `.layout.tsx`, or `.ui.
 
 ---
 
-## Zero UI Duplication Protocol (Scan → Evaluate → Ask → Reuse)
+## Zero UI Duplication Protocol (Scan → Evaluate → Reuse / Update)
 
 A frequent architectural failure is recreating duplicate UI components for the same visual concept across different placements — for example, building an HTTP method badge for an endpoint detail card, a second HTTP badge for a dropdown selector, and a third inside an API log table.
 
@@ -37,11 +37,10 @@ Every recurring visual element must have **exactly one canonical UI primitive** 
 
 1. **Mandatory Inventory Scan**: Before creating any `.ui.tsx` or feature sub-component that renders badges, tags, buttons, inputs, or indicators, scan `[project]/components/**`, `/layouts/**`, and `/constants/**`.
 2. **Evaluate**:
-   - **Exact match**: Mark as `[REUSE]` in your pre-implementation file tree and reuse it directly.
+   - **Exact match**: Mark as `[REUSE]` in your `### Proposed File Tree` and reuse it directly.
    - **Partial match** (e.g. `httpBadge.ui.tsx` exists with `GET`/`POST`, but now needs `PUT`/`PATCH`/`DELETE` or `size="sm"` for a dropdown):
      - ❌ **NEVER** create a placement-specific duplicate (`dropdownHttpBadge.ui.tsx`, `endpointBadge.ui.tsx`, or inline markup).
-     - ❌ **NEVER** make breaking changes silently.
-     - ✅ **Mark as `[UPDATE]` and ask the user first** in the Pre-Implementation Plan whether to extend the canonical primitive and its constants map.
+     - ✅ **Mark as `[UPDATE]` in `### Proposed File Tree`** with a short comment describing the extension to the canonical primitive and its `.constant.ts` map.
 
 ---
 

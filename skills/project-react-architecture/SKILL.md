@@ -1,6 +1,6 @@
 ---
 name: project-react-architecture
-description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: BEFORE writing or editing any code, scan existing project files, make explicit layer/scope placement decisions, output an annotated File Tree Plan (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`), and confirm with the user first that the implementation plan is valid; scan `/components/**` and `/layouts/**` to eliminate duplicate UI components; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
+description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: BEFORE writing or editing any code, scan existing project files, make explicit layer/scope placement decisions internally, and output ONLY the annotated `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`) to confirm with the user before implementing; scan `/components/**` and `/layouts/**` to eliminate duplicate UI components; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
 ---
 
 # React Clean Component Architecture
@@ -31,7 +31,7 @@ Each topic has a dedicated reference file with complete code templates and `❌ 
 
 | Topic & Reference File | When to Read |
 | :--- | :--- |
-| **[references/pre-implementation-plan.md](references/pre-implementation-plan.md)** | **Read FIRST before any implementation or refactor.** Full 3-step Scan → Decide → Plan Tree & Confirm protocol, decision matrix, and user confirmation templates. |
+| **[references/pre-implementation-plan.md](references/pre-implementation-plan.md)** | **Read FIRST before any implementation or refactor.** Full 3-step Scan → Decide → Output `### Proposed File Tree` protocol, decision matrix, and file tree templates. |
 | **[references/layers-and-nextjs-routes.md](references/layers-and-nextjs-routes.md)** | **Read when building/editing `.ui.tsx`, `.layout.tsx`, feature components, or Next.js routes.** Full code blueprints, `'use client'`/`'use server'` placement, SSR `page.tsx` rules, and zero-`className` BAD vs. GOOD examples. |
 | **[references/ui-reuse-and-promotion.md](references/ui-reuse-and-promotion.md)** | **Read when adding visual elements (badges, buttons, tags, inputs) or sharing code across features.** Zero UI duplication protocol, canonical `HttpBadge` case study, root vs. feature placement table, and the 3-level Promotion Scale. |
 | **[references/module-slicing.md](references/module-slicing.md)** | **Read when splitting a growing component, hook, utility, or service.** Semantic subfolder rules (`.rule.ts`, `.geometry.ts`, `.factory.ts`, `.mapper.ts`, `.parser.ts`, `.format.ts`, `.export.ts`, `.slice.ts`, `.selector.ts`, `.provider.ts`) and code examples. |
@@ -39,24 +39,18 @@ Each topic has a dedicated reference file with complete code templates and `❌ 
 
 ---
 
-## 0. Pre-Implementation File Tree & Confirmation Gate (MANDATORY FIRST STEP)
+## 0. Pre-Implementation File Tree Gate (MANDATORY FIRST STEP)
 
-Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*), **DO NOT jump straight to writing or modifying files**, and **DO NOT write a multi-section prose essay**. Follow this 3-step workflow first (details in [references/pre-implementation-plan.md](references/pre-implementation-plan.md)):
+Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*), **DO NOT jump straight to writing or modifying files**, and **DO NOT write extra prose sections or questionnaires**. Follow this 3-step workflow first (details in [references/pre-implementation-plan.md](references/pre-implementation-plan.md)):
 
 1. **Step 1 — Scan Existing Codebase Internally**: Inspect `/components/**`, `/layouts/**`, `/constants/**`, `/types/**`, `/hooks/**`, `/utils/**`, `features/**`, and `app/**` to see what already exists.
 2. **Step 2 — Decide Layer & Scope Internally**:
-   - **UI Primitive / Layout Match?** → Exact match: **`[REUSE]`**. Partial match (e.g. missing variant/size/method): **`[UPDATE]`** (verify in `### Confirmation`). Duplicate/obsolete file to remove: **`[DELETE]`**. None exists: **`[NEW]`** at `/components/[module]/[name].ui.tsx` or `/layouts/[category]/[name].layout.tsx`.
+   - **UI Primitive / Layout Match?** → Exact match: **`[REUSE]`**. Partial match (e.g. missing variant/size/method): **`[UPDATE]`**. Duplicate/obsolete file to remove: **`[DELETE]`**. None exists: **`[NEW]`** at `/components/[module]/[name].ui.tsx` or `/layouts/[category]/[name].layout.tsx`.
    - **Root vs. Feature Scope?** → Used by **≥2 features or app-wide**: project root (`/types`, `/constants`, `/hooks`, `/utils`), or **`[PROMOTE]`** if moving up from 1 feature (marking the old feature-local copy **`[DELETE]`**). Used by **1 feature only**: `features/[feature]/`.
    - **Feature Component?** → `features/[feature]/components/[name]/` with `.component.tsx` (zero `className`), `.hook.ts`, `.type.ts`, exported via `[feature].feature.ts`.
    - **Next.js Page / Route (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)?** → **Server-Side Rendered (SSR / Server Component — never `'use client'`)**, zero custom `className`, importing **only** `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
-3. **Step 3 — Output ONLY `### Proposed File Tree` and `### Confirmation`**:
-   Before touching code files (unless the user explicitly says *"skip confirmation"*), output **only** these two sections:
-   - **`### Proposed File Tree`**: An ASCII tree of affected/reused files with a short `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE]` inline comment stating what each file does.
-   - **`### Confirmation`**:
-     - **Only ask clarifying questions when the user's prompt is genuinely unclear/ambiguous OR when an existing file requires verification before modifying/removing (`[UPDATE]`, `[PROMOTE]`, `[DELETE]`).**
-     - **NEVER invent random or filler questions** about things already settled by the prompt or by these architecture rules (e.g., never ask *"Should we export components from `.feature.ts`?"* or *"Should the page be SSR?"* — those are already mandatory rules).
-     - If the prompt is clear and no existing file modification is ambiguous, include **only** `1. Proceed with implementing this file tree?`.
-     - Format every item as a numbered question (`1.`, `2.`, ...) with lettered options (`a.`, `b.`, `c.`, ...), mark the recommended choice with `(Recommended)`, and **always make the final option `[last letter]. Type your own answer`**.
+3. **Step 3 — Output ONLY `### Proposed File Tree`**:
+   Before touching code files (unless the user explicitly says *"skip confirmation"*), output **only** the `### Proposed File Tree` section showing every file to create, update, reuse, promote, or delete with a short `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE] — what it does` inline comment, and wait for the user to confirm:
 
 ```markdown
 ### Proposed File Tree
@@ -76,17 +70,6 @@ Whenever the user asks to add, build, update, or refactor any feature, component
             ├── methodDropdown.hook.ts                     # [NEW] Dropdown selection state & handlers
             └── methodDropdown.type.ts                     # [NEW] Props & dropdown types
 ```
-
-### Confirmation
-
-1. `httpBadge.ui.tsx` currently only supports `GET` and `POST`. How should we handle `PUT`, `PATCH`, `DELETE`, and the compact dropdown size?
-   a. Update existing `/components/badge/httpBadge.ui.tsx` and `/constants/httpBadge.constant.ts` with `PUT`/`PATCH`/`DELETE` and `size="sm"` (Recommended)
-   b. Create a separate badge primitive for the dropdown
-   c. Type your own answer
-
-2. Proceed with implementing this file tree?
-   a. Yes, proceed with implementation (Recommended)
-   b. Type your own answer
 ```
 
 ---

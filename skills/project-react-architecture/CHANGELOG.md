@@ -2,12 +2,12 @@
 
 ## 1.7.0
 - Modularized detailed topic guides and reference code into `references/` for progressive disclosure, reducing `SKILL.md` to a concise ~135-line architectural entrypoint:
-  - `references/pre-implementation-plan.md` — 3-step Scan → Decide → Output Proposed File Tree & Confirm gate, decision matrix, and lean confirmation templates.
+  - `references/pre-implementation-plan.md` — 3-step Scan → Decide → Output `### Proposed File Tree` gate, decision matrix, and file tree template.
   - `references/layers-and-nextjs-routes.md` — Full code blueprints for `.ui.tsx`, `.layout.tsx`, `.component.tsx`, `.hook.ts`, `[feature].feature.ts`, and Next.js SSR routes (`page.tsx`/`layout.tsx`) with BAD vs. GOOD examples.
   - `references/ui-reuse-and-promotion.md` — Root vs. single-feature placement, Zero UI Duplication protocol, canonical `HttpBadge` case study, and the 3-level Promotion Scale.
   - `references/module-slicing.md` — Growing module slicing rules, semantic suffixes, directory trees, and entrypoint + submodule code examples.
   - `references/type-safety-and-comments.md` — Code hygiene & type-safety rules (4A–4M) and the 5-line `what`/`param`/`return` Lean Doc Block standard with BAD vs. GOOD examples.
-- Added §0 "Pre-Implementation File Tree & Confirmation Gate (MANDATORY FIRST STEP)" and Rule 4M: before creating or modifying files, agents scan the codebase internally and output **ONLY** `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]` with a short inline comment on what each file does) and `### Confirmation` (numbered questions with lettered options ending in `Type your own answer`, asked only when the prompt is unclear or an existing file modification requires verification, plus the implementation confirmation prompt).
+- Added §0 "Pre-Implementation File Tree Gate (MANDATORY FIRST STEP)" and Rule 4M: before creating or modifying files, agents scan the codebase internally and output **ONLY** `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]` with a short inline comment on what each file does).
 - Added §1E "Next.js Page & Router Components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)" and Rule 4L: enforced that Next.js pages/layouts are always Server-Side Rendered (Server Components — never `'use client'`), have zero custom `className`, and only import `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
 
 ## 1.6.0
