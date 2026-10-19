@@ -53,6 +53,19 @@
         "Visual elements and structural wrappers on the page use .ui.tsx primitives and .layout.tsx containers",
         "The users.feature.ts entrypoint exports the public feature components consumed by the page"
       ]
+    },
+    {
+      "id": 4,
+      "name": "pre-implementation-plan-and-file-tree-confirmation",
+      "prompt": "Add an API playground page at `/app/api-playground/page.tsx` with a method selector dropdown and an endpoint status card.",
+      "expected_output": "Before writing or modifying implementation files, the agent scans existing components/layouts, presents an Architectural Decisions summary and an annotated Proposed File Tree (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`) showing exact file paths across `app/`, `components/`, `layouts/`, `constants/`, and `features/`, and asks the user to confirm that the plan and file tree are valid before proceeding.",
+      "files": [],
+      "assertions": [
+        "Presents architectural decisions explaining layer placement and reuse vs. creation",
+        "Outputs an annotated file tree with status tags ([NEW], [UPDATE], [REUSE], or [PROMOTE]) for all affected files",
+        "Places the Next.js route at app/api-playground/page.tsx as an SSR Server Component importing from the feature entrypoint",
+        "Asks the user to confirm the proposed architecture plan and file tree before writing implementation files"
+      ]
     }
   ]
 }

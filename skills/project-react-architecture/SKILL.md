@@ -1,6 +1,6 @@
 ---
 name: project-react-architecture
-description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: scan existing `/components/**` and `/layouts/**` before creating any UI to eliminate duplicate components; ask the user first before updating or creating when an existing primitive partially matches; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
+description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: BEFORE writing or editing any code, scan existing project files, make explicit layer/scope placement decisions, output an annotated File Tree Plan (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`), and confirm with the user first that the implementation plan is valid; scan `/components/**` and `/layouts/**` to eliminate duplicate UI components; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
 ---
 
 # React Clean Component Architecture
@@ -25,24 +25,73 @@ Every UI and code element belongs to exactly one layer. The project root holds e
     └── [feature].feature.ts               # Public feature entrypoint (only path pages/features may import)
 ```
 
-## 0. Decision Checklist (read this first)
+## 0. Pre-Implementation Decision & File Tree Confirmation Protocol (MANDATORY FIRST STEP)
 
-Before creating or touching any file, answer in order:
+Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*), **DO NOT jump straight to writing or modifying files**. You must first follow this **3-Step Scan → Decide & Plan Tree → Confirm** workflow:
+
+### Step 1: Scan Existing Codebase
+Scan `[project]/components/**`, `/layouts/**`, `/constants/**`, `/types/**`, `/hooks/**`, `/utils/**`, `features/**`, and `app/**` to see what already exists and can be reused, extended, or promoted.
+
+### Step 2: Run the Layer & Scope Decision Checklist
+For every piece required by the request, decide its exact placement and action in order:
 
 1. **Does a matching or partial UI primitive / layout container already exist?** → Scan `/components/**` and `/layouts/**` BEFORE creating any new UI (§0B).
-   - If an exact match exists → reuse it; do not create duplicate UI components.
-   - If a partial match exists (e.g. missing HTTP method, prop, or variant) → **ask the user first** what needs to be updated or created before changing or adding files.
-   - If none exists → design a canonical primitive at `/components/[module]/` intended for reuse across both display components and pickers/dropdowns.
+   - If an exact match exists → mark as **`[REUSE]`**; do not create duplicate UI components.
+   - If a partial match exists (e.g. missing HTTP method, prop, or variant) → mark as **`[UPDATE]`** and explain what will be extended in the confirmation plan.
+   - If none exists → mark as **`[NEW]`** at `/components/[module]/[name].ui.tsx`, designed as a canonical primitive reusable across cards, tables, and dropdowns.
 2. **Is it purely visual/presentational with no domain logic?** → `.ui.tsx` in `/components/[module]/` (§1A).
 3. **Is it pure structure (flex/grid/spacing) with no visuals or logic?** → `.layout.tsx` in `/layouts/[category]/` (§1B).
 4. **Does it connect business state/hooks to UI + Layout primitives?** → feature component in `features/[feature]/components/[name]/` (§1D).
 5. **Is it a Next.js page or router file (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)?** → keep it **Server-Side Rendered (SSR / Server Component — never `'use client'`)**, treat it like a feature component view with **zero custom `className`**, and import **only** `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` — never deep-import internal `features/[feature]/components/**` (§1E, §2).
 6. **Is it a type, constant, hook, or helper?** Decide by consumer count, not by convenience:
-   - Used by **≥2 features or app-wide** → **root project**: `/types`, `/constants`, `/hooks`, `/utils` (see §0A).
+   - Used by **≥2 features or app-wide** → **root project**: `/types`, `/constants`, `/hooks`, `/utils` (see §0A). If an existing feature file just gained a second feature consumer, mark it as **`[PROMOTE]`** to move it to root (§3B).
    - Used by **1 feature only** → feature-scoped: `features/[feature]/types|constants|hooks|utils/`.
 7. **Is it a sub-component used by exactly one parent?** → Nest it (§3), then re-check the promotion scale (§3B) the moment a second consumer appears.
 
 If a file would mix two of these concerns (e.g. styling + business logic), split it — that split is the point of this architecture, not an edge case to work around.
+
+### Step 3: Output the Architecture Decision Plan & File Tree and Ask for Confirmation
+Before creating or editing any code file (unless the user explicitly says *"skip confirmation"* or *"implement immediately"*), present:
+1. **Architectural Decisions**: A concise bullet list explaining *why* each element is placed in its layer, what existing primitives are reused (`[REUSE]`) or extended (`[UPDATE]`), and how SSR/import boundaries are preserved.
+2. **Proposed File Tree**: An ASCII tree listing every file touched or relied upon, tagged with `[NEW]`, `[UPDATE]`, `[REUSE]`, or `[PROMOTE]` and a 1-line summary of its role.
+3. **User Confirmation Prompt**: Ask the user to confirm that the plan and file tree are valid before writing the code.
+
+#### Canonical Plan & File Tree Confirmation Template
+
+```text
+### 1. Architectural Decisions
+- **UI Primitives & Layouts**:
+  - `[REUSE]` `/layouts/page/pageLayout.layout.tsx` & `/layouts/card/cardLayout.layout.tsx` for page and card framing.
+  - `[UPDATE]` `/components/badge/httpBadge.ui.tsx` & `/constants/httpBadge.constant.ts` — add `PUT`, `PATCH`, `DELETE` and `size="sm"` so both the endpoint card and dropdown selector share one primitive.
+- **Shared vs. Feature Scope**:
+  - `httpBadge.constant.ts` lives at project root `/constants/` because it is shared across `apiDocs` and `apiTester` (≥2 features).
+  - `methodDropdown` is specific to `apiTester`, so its `.component.tsx`, `.hook.ts`, and `.type.ts` live under `features/apiTester/components/methodDropdown/` and are exported via `apiTester.feature.ts`.
+- **Next.js SSR Page Boundary**:
+  - `[NEW]` `/app/api-playground/page.tsx` is an SSR Server Component (no `'use client'`, zero `className`) importing only `.layout.tsx`, `.ui.tsx`, and `apiTester.feature.ts`.
+
+### 2. Proposed File Tree
+[project]/
+├── app/api-playground/
+│   └── page.tsx                                           # [NEW] SSR Server Component page shell (zero className)
+├── components/
+│   ├── badge/httpBadge.ui.tsx                             # [UPDATE] Add compact size="sm" variant
+│   └── text/headingText.ui.tsx                            # [REUSE] Canonical heading primitive
+├── constants/
+│   └── httpBadge.constant.ts                              # [UPDATE] Add PUT/PATCH/DELETE styles & HTTP_BADGE_SIZE_MAP
+├── layouts/
+│   ├── card/cardLayout.layout.tsx                         # [REUSE] Card structural wrapper
+│   └── page/pageLayout.layout.tsx                         # [REUSE] Page structural wrapper
+└── features/
+    └── apiTester/
+        ├── apiTester.feature.ts                           # [NEW] Public feature entrypoint exporting MethodDropdown
+        └── components/
+            └── methodDropdown/
+                ├── methodDropdown.component.tsx           # [NEW] Pure JSX view (zero className)
+                ├── methodDropdown.hook.ts                 # [NEW] Dropdown selection state & handlers
+                └── methodDropdown.type.ts                 # [NEW] Props & dropdown types
+
+Does this architecture plan and file tree look valid to proceed with implementation?
+```
 
 ### 0A. Shared code lives at the project root, never inside a feature
 
@@ -667,6 +716,10 @@ Never create duplicate components or parallel visual primitives for the same con
 ### L. Next.js Page & Router Boundary (SSR Only, Zero `className`, Strict Imports)
 
 Next.js page and router components (`app/**/page.tsx`, `app/**/layout.tsx`, `app/**/loading.tsx`, `app/**/not-found.tsx`, `pages/**`) must be **Server-Side Rendered (Server Components — never `'use client'`)** and obey the exact same view rules as `.component.tsx`: **zero custom `className` or inline `style`**, and they may **only** import UI primitives from `/components/[module]/[name].ui.tsx`, structural containers from `/layouts/[category]/[name].layout.tsx`, and feature components exported by `features/[feature]/[feature].feature.ts` (§1E, §2). Never add `'use client'` to a page or route layout, and never deep-import internal feature files (`features/[feature]/components/**`) into a route file.
+
+### M. Pre-Implementation Plan & File Tree Confirmation Gate
+
+Never create or modify files blindly on an implementation request. Always scan existing project layers first, formulate the architectural decisions (layer placement, root vs. single-feature scope, UI primitive reuse vs. extension), present the annotated **Proposed File Tree (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`)**, and ask the user to confirm that the plan is valid before writing code (§0).
 
 ---
 
