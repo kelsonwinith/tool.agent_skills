@@ -1,11 +1,14 @@
 # Changelog
 
 ## 1.7.0
+- Modularized detailed topic guides and reference code into `references/` for progressive disclosure, reducing `SKILL.md` to a concise ~135-line architectural entrypoint:
+  - `references/pre-implementation-plan.md` — 3-step Scan → Decide → Plan Tree & Confirm protocol, decision matrix, and confirmation templates.
+  - `references/layers-and-nextjs-routes.md` — Full code blueprints for `.ui.tsx`, `.layout.tsx`, `.component.tsx`, `.hook.ts`, `[feature].feature.ts`, and Next.js SSR routes (`page.tsx`/`layout.tsx`) with BAD vs. GOOD examples.
+  - `references/ui-reuse-and-promotion.md` — Root vs. single-feature placement, Zero UI Duplication protocol, canonical `HttpBadge` case study, and the 3-level Promotion Scale.
+  - `references/module-slicing.md` — Growing module slicing rules, semantic suffixes, directory trees, and entrypoint + submodule code examples.
+  - `references/type-safety-and-comments.md` — Code hygiene & type-safety rules (4A–4M) and the 5-line `what`/`param`/`return` Lean Doc Block standard with BAD vs. GOOD examples.
 - Added §0 "Pre-Implementation Decision & File Tree Confirmation Protocol (MANDATORY FIRST STEP)" and Rule 4M: before creating or modifying files, agents must scan the codebase, formulate layer/scope decisions, present an annotated Proposed File Tree (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`), and confirm with the user that the plan is valid.
-- Added §1E "Next.js Page & Router Components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)" and Rule 4L.
-- Enforced that Next.js page and router components are always Server-Side Rendered (Server Components — never `'use client'`) and act like feature component views with zero custom `className` or inline `style` attributes.
-- Enforced strict import boundaries for page/router files: may only import `.ui.tsx` primitives (`/components/[module]/[name].ui.tsx`), `.layout.tsx` containers (`/layouts/[category]/[name].layout.tsx`), and public feature components exported from `features/[feature]/[feature].feature.ts` (never deep-importing internal `features/[feature]/components/**` files).
-- Updated §1D (`'use client'` placement) and §2 (The No-Inline-`className` Rule) with BAD vs. GOOD Next.js SSR `page.tsx` examples.
+- Added §1E "Next.js Page & Router Components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)" and Rule 4L: enforced that Next.js pages/layouts are always Server-Side Rendered (Server Components — never `'use client'`), have zero custom `className`, and only import `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
 
 ## 1.6.0
 - Added §0B "Scan before creating: single source of truth for UI primitives (Zero duplication)" with a strict Scan → Evaluate → Ask → Reuse protocol.
