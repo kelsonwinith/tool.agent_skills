@@ -1,29 +1,32 @@
-# Pre-Implementation Decision & File Tree Confirmation Protocol
+# Pre-Implementation File Tree & Confirmation Gate
 
-Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*, *"refactor Z..."*), **do not jump straight to creating or editing files**. Follow the **Scan → Decide → Propose Tree & Confirm** protocol first.
+Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*, *"refactor Z..."*), **do not jump straight to creating or editing files**, and **do not output long multi-section prose explanations**.
+
+Keep the pre-implementation confirmation response strictly limited to **two sections only**:
+1. `### Proposed File Tree` (with a brief inline `# [TAG]` comment per file)
+2. `### Confirmation` (with numbered questions `1.`, `2.`, `3.`... and lettered choices `a.`, `b.`, `c.`... where the recommended choice has `(Recommended)` and the **final choice is always `[last letter]. Type your own answer`**)
 
 ## Table of Contents
-1. [Step 1: Mandatory Inventory Scan](#step-1-mandatory-inventory-scan)
-2. [Step 2: Layer & Scope Decision Matrix](#step-2-layer--scope-decision-matrix)
-3. [Step 3: Architecture Plan & Annotated File Tree Template](#step-3-architecture-plan--annotated-file-tree-template)
-4. [Scenario Templates (Partial UI Match & Promotion)](#scenario-templates-partial-ui-match--promotion)
+1. [Step 1: Internal Inventory Scan](#step-1-internal-inventory-scan)
+2. [Step 2: Internal Layer & Scope Decision Matrix](#step-2-internal-layer--scope-decision-matrix)
+3. [Step 3: Output Format — `### Proposed File Tree` & `### Confirmation` ONLY](#step-3-output-format--proposed-file-tree--confirmation-only)
 
 ---
 
-## Step 1: Mandatory Inventory Scan
+## Step 1: Internal Inventory Scan
 
-Before proposing a file tree or writing any code, inspect the existing workspace:
+Before proposing a file tree, silently inspect the workspace:
 
-1. **Global UI Primitives (`/components/**`)**: Check `/components/button/`, `/components/badge/`, `/components/text/`, `/components/input/`, `/components/indicator/`, etc. for existing `.ui.tsx` files that already solve or partially solve the visual requirement.
+1. **Global UI Primitives (`/components/**`)**: Check `/components/button/`, `/components/badge/`, `/components/text/`, `/components/input/`, `/components/indicator/` for existing `.ui.tsx` primitives.
 2. **Global Layout Containers (`/layouts/**`)**: Check `/layouts/page/`, `/layouts/card/`, `/layouts/flex/`, `/layouts/grid/`, `/layouts/dialog/`, `/layouts/panel/` for structural wrappers.
 3. **App-Wide Shared Layers (`/constants/**`, `/types/**`, `/hooks/**`, `/utils/**`)**: Check for existing shared constants, style maps, `RequestState<T>`, or utility helpers.
-4. **Feature Modules (`features/**`) & Routes (`app/**` / `pages/**`)**: Check existing feature entrypoints (`[feature].feature.ts`) and route structures.
+4. **Feature Modules (`features/**`) & Routes (`app/**` / `pages/**`)**: Check existing `[feature].feature.ts` entrypoints and route structures.
 
 ---
 
-## Step 2: Layer & Scope Decision Matrix
+## Step 2: Internal Layer & Scope Decision Matrix
 
-Evaluate every element required by the user's prompt using this decision matrix:
+Decide the placement and tag (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`) for every file:
 
 | Question | Decision | Target Path & Tag |
 | :--- | :--- | :--- |
@@ -39,28 +42,22 @@ Evaluate every element required by the user's prompt using this decision matrix:
 
 ---
 
-## Step 3: Architecture Plan & Annotated File Tree Template
+## Step 3: Output Format — `### Proposed File Tree` & `### Confirmation` ONLY
 
-Before touching any code (unless the user explicitly says *"skip confirmation"* or *"just implement it"*), present this 3-part plan and wait for confirmation:
+**Do NOT include a separate "Architectural Decisions" prose section.** Output **only** `### Proposed File Tree` and `### Confirmation`.
 
-1. **Architectural Decisions**: Explain *why* each item is placed in its layer, what is reused (`[REUSE]`), what is updated (`[UPDATE]`), what is promoted (`[PROMOTE]`), and how SSR/import boundaries are maintained.
-2. **Proposed File Tree**: An ASCII directory tree of every file to be created, modified, promoted, or reused, annotated with `[NEW]`, `[UPDATE]`, `[REUSE]`, or `[PROMOTE]`.
-3. **Confirmation Question**: Ask the user to confirm that the plan and file tree are valid before writing code.
+### Rules for `### Confirmation`
+- Number every question sequentially: `1.`, `2.`, `3.`, etc.
+- Provide lettered multiple-choice options (`a.`, `b.`, `c.`, ...) under each question.
+- Mark the recommended option with `(Recommended)` (typically `a. ... (Recommended)`).
+- **The final option of every question must always be `[last letter]. Type your own answer`** (for example, `c. Type your own answer` or `d. Type your own answer`, depending on how many choices are listed).
+- Always include a final numbered confirmation question asking whether to proceed with implementing the file tree.
 
-### Example Output to User
+### Canonical Response Template
 
 ```markdown
-### 1. Architectural Decisions
-- **UI Primitives & Layouts**:
-  - `[REUSE]` `/layouts/page/pageLayout.layout.tsx` & `/layouts/card/cardLayout.layout.tsx` for page and card framing.
-  - `[UPDATE]` `/components/badge/httpBadge.ui.tsx` & `/constants/httpBadge.constant.ts` — extend with `PUT`, `PATCH`, `DELETE` and `size="sm"` so both the endpoint card and dropdown selector reuse one canonical primitive.
-- **Shared vs. Feature Scope**:
-  - `httpBadge.constant.ts` lives at project root `/constants/` because it is shared across `apiDocs` and `apiTester` (≥2 features).
-  - `methodDropdown` is specific to `apiTester`, so its `.component.tsx`, `.hook.ts`, and `.type.ts` live under `features/apiTester/components/methodDropdown/` and are exported via `apiTester.feature.ts`.
-- **Next.js SSR Page Boundary**:
-  - `[NEW]` `/app/api-playground/page.tsx` is an SSR Server Component (no `'use client'`, zero `className`) importing only `.layout.tsx`, `.ui.tsx`, and `apiTester.feature.ts`.
+### Proposed File Tree
 
-### 2. Proposed File Tree
 ```text
 [project]/
 ├── app/api-playground/
@@ -83,15 +80,14 @@ Before touching any code (unless the user explicitly says *"skip confirmation"* 
                 └── methodDropdown.type.ts                 # [NEW] Props & dropdown types
 ```
 
-Does this architecture plan and file tree look valid to proceed with implementation?
+### Confirmation
+
+1. `httpBadge.ui.tsx` currently only supports `GET` and `POST`. How should we support `PUT`, `PATCH`, `DELETE`, and the compact dropdown badge size?
+   a. Update `/components/badge/httpBadge.ui.tsx` and `/constants/httpBadge.constant.ts` with `PUT`/`PATCH`/`DELETE` and `size="sm"` (Recommended)
+   b. Keep `httpBadge.ui.tsx` unchanged and create a separate badge component
+   c. Type your own answer
+
+2. Proceed with implementing this file tree?
+   a. Yes, proceed with implementation (Recommended)
+   b. Type your own answer
 ```
-
----
-
-## Scenario Templates (Partial UI Match & Promotion)
-
-### When an Existing UI Primitive Partially Matches
-> "Found existing UI primitive at `[project]/components/badge/httpBadge.ui.tsx` supporting `GET` and `POST`. To support our method selector dropdown and API views with `PUT`, `PATCH`, and `DELETE` (and a compact `size="sm"`), I have marked `httpBadge.ui.tsx` and `/constants/httpBadge.constant.ts` as `[UPDATE]` in the file tree above rather than creating a duplicate badge component. Please confirm if extending `httpBadge.ui.tsx` is preferred."
-
-### When Promoting a File Across Scopes (`[PROMOTE]`)
-> "`formatCurrency.util.ts` currently lives in `features/checkout/utils/formatCurrency.util.ts`, and is now needed by `features/invoices/`. In the file tree above, it is marked `[PROMOTE]` to move to `[project]/utils/formatCurrency.util.ts` (and delete the feature-local copy) so both features import from the root layer. Please confirm before I apply the move."

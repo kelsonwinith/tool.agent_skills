@@ -39,21 +39,23 @@ Each topic has a dedicated reference file with complete code templates and `❌ 
 
 ---
 
-## 0. Pre-Implementation Decision & File Tree Confirmation Protocol (MANDATORY FIRST STEP)
+## 0. Pre-Implementation File Tree & Confirmation Gate (MANDATORY FIRST STEP)
 
-Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*), **DO NOT jump straight to writing or modifying files**. Follow this 3-step workflow first (full details & templates in [references/pre-implementation-plan.md](references/pre-implementation-plan.md)):
+Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*), **DO NOT jump straight to writing or modifying files**, and **DO NOT write a multi-section prose essay**. Follow this 3-step workflow first (details in [references/pre-implementation-plan.md](references/pre-implementation-plan.md)):
 
-1. **Step 1 — Scan Existing Codebase**: Inspect `/components/**`, `/layouts/**`, `/constants/**`, `/types/**`, `/hooks/**`, `/utils/**`, `features/**`, and `app/**` to identify what already exists.
-2. **Step 2 — Run the Layer & Scope Decision Checklist**:
-   - **UI Primitive / Layout Match?** → Exact match: mark **`[REUSE]`**. Partial match (e.g. missing variant/size/method): mark **`[UPDATE]`** and ask the user first before extending. None exists: mark **`[NEW]`** at `/components/[module]/[name].ui.tsx` or `/layouts/[category]/[name].layout.tsx`.
-   - **Root vs. Feature Scope?** → Used by **≥2 features or app-wide**: place at project root (`/types`, `/constants`, `/hooks`, `/utils`), or mark **`[PROMOTE]`** if moving up from a single feature. Used by **1 feature only**: keep under `features/[feature]/`.
-   - **Feature Component?** → Place under `features/[feature]/components/[name]/` with `.component.tsx` (zero `className`), `.hook.ts`, and `.type.ts`, and export public components from `[feature].feature.ts`.
-   - **Next.js Page / Route (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)?** → Keep **Server-Side Rendered (SSR / Server Component — never `'use client'`)**, zero custom `className`, importing **only** `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
-3. **Step 3 — Present the Architecture Plan & Annotated File Tree and Confirm**:
-   Before touching code files (unless the user explicitly says *"skip confirmation"*), output:
-   - **1. Architectural Decisions** (`[REUSE]`, `[UPDATE]`, `[NEW]`, `[PROMOTE]` rationale)
-   - **2. Proposed File Tree** (annotated ASCII tree of every file to create, update, promote, or reuse)
-   - **3. Confirmation Prompt**: *"Does this architecture plan and file tree look valid to proceed with implementation?"*
+1. **Step 1 — Scan Existing Codebase Internally**: Inspect `/components/**`, `/layouts/**`, `/constants/**`, `/types/**`, `/hooks/**`, `/utils/**`, `features/**`, and `app/**` to see what already exists.
+2. **Step 2 — Decide Layer & Scope Internally**:
+   - **UI Primitive / Layout Match?** → Exact match: **`[REUSE]`**. Partial match (e.g. missing variant/size/method): **`[UPDATE]`** (ask the user in `### Confirmation`). None exists: **`[NEW]`** at `/components/[module]/[name].ui.tsx` or `/layouts/[category]/[name].layout.tsx`.
+   - **Root vs. Feature Scope?** → Used by **≥2 features or app-wide**: project root (`/types`, `/constants`, `/hooks`, `/utils`), or **`[PROMOTE]`** if moving up from 1 feature. Used by **1 feature only**: `features/[feature]/`.
+   - **Feature Component?** → `features/[feature]/components/[name]/` with `.component.tsx` (zero `className`), `.hook.ts`, `.type.ts`, exported via `[feature].feature.ts`.
+   - **Next.js Page / Route (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)?** → **Server-Side Rendered (SSR / Server Component — never `'use client'`)**, zero custom `className`, importing **only** `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
+3. **Step 3 — Output ONLY `### Proposed File Tree` and `### Confirmation`**:
+   Before touching code files (unless the user explicitly says *"skip confirmation"*), output **only** these two sections:
+   - **`### Proposed File Tree`**: An ASCII tree of affected/reused files with a short `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE]` inline comment stating what each file does.
+   - **`### Confirmation`**: Numbered questions (`1.`, `2.`, `3.`...) for any decisions/clarifications needed and for confirming the implementation. Format every question with lettered options (`a.`, `b.`, `c.`...), mark the recommended choice with `(Recommended)`, and **always make the final option `[last letter]. Type your own answer`**.
+
+```markdown
+### Proposed File Tree
 
 ```text
 [project]/
@@ -67,6 +69,18 @@ Whenever the user asks to add, build, update, or refactor any feature, component
         ├── methodDropdown.component.tsx                   # [NEW] Pure JSX view (zero className)
         ├── methodDropdown.hook.ts                         # [NEW] Dropdown selection state & handlers
         └── methodDropdown.type.ts                         # [NEW] Props & dropdown types
+```
+
+### Confirmation
+
+1. `httpBadge.ui.tsx` currently only supports `GET` and `POST`. How should we handle `PUT`, `PATCH`, `DELETE`, and the compact dropdown size?
+   a. Update existing `/components/badge/httpBadge.ui.tsx` and `/constants/httpBadge.constant.ts` with `PUT`/`PATCH`/`DELETE` and `size="sm"` (Recommended)
+   b. Create a separate badge primitive for the dropdown
+   c. Type your own answer
+
+2. Proceed with implementing this file tree?
+   a. Yes, proceed with implementation (Recommended)
+   b. Type your own answer
 ```
 
 ---
