@@ -1,6 +1,6 @@
 ---
 name: project-react-architecture
-description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: BEFORE writing or editing any code, scan existing project files, make explicit layer/scope placement decisions, output an annotated File Tree Plan (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`), and confirm with the user first that the implementation plan is valid; scan `/components/**` and `/layouts/**` to eliminate duplicate UI components; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
+description: "Use whenever building or editing ANY React/Next.js UI or route — pages, layouts, routers, cards, forms, dropdowns, dashboards, modals, buttons, tables, badges — even if the user doesn't say 'component,' 'layout,' or name a file type. Also use when refactoring existing components/pages, splitting a growing module into semantic submodules, or deciding where a shared type/constant/hook/util/UI primitive should live. Enforces: BEFORE writing or editing any code, scan existing project files, make explicit layer/scope placement decisions, output an annotated File Tree Plan (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`), and confirm with the user first that the implementation plan is valid; scan `/components/**` and `/layouts/**` to eliminate duplicate UI components; code shared across features or used app-wide lives at the PROJECT ROOT (`/components/[module]/[name].ui.tsx`, `/layouts/[category]/[name].layout.tsx`, `/hooks/[name].hook.ts`, `/types/[name].type.ts`, `/constants/[name].constant.ts`, `/utils/[name].util.ts`), never inside a feature; only single-feature code lives under `features/[feature]/`; both feature components (`features/[feature]/components/[name]/`) and Next.js page/router components (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`) use zero inline className styling; Next.js pages are always Server-Side Rendered (Server Components — never `'use client'`); page/router files only import `.ui.tsx` primitives, `.layout.tsx` containers, and public components from `[feature].feature.ts` (never deep-importing internal feature files); and every exported non-trivial function carries a fixed comment block."
 ---
 
 # React Clean Component Architecture
@@ -45,14 +45,18 @@ Whenever the user asks to add, build, update, or refactor any feature, component
 
 1. **Step 1 — Scan Existing Codebase Internally**: Inspect `/components/**`, `/layouts/**`, `/constants/**`, `/types/**`, `/hooks/**`, `/utils/**`, `features/**`, and `app/**` to see what already exists.
 2. **Step 2 — Decide Layer & Scope Internally**:
-   - **UI Primitive / Layout Match?** → Exact match: **`[REUSE]`**. Partial match (e.g. missing variant/size/method): **`[UPDATE]`** (ask the user in `### Confirmation`). None exists: **`[NEW]`** at `/components/[module]/[name].ui.tsx` or `/layouts/[category]/[name].layout.tsx`.
-   - **Root vs. Feature Scope?** → Used by **≥2 features or app-wide**: project root (`/types`, `/constants`, `/hooks`, `/utils`), or **`[PROMOTE]`** if moving up from 1 feature. Used by **1 feature only**: `features/[feature]/`.
+   - **UI Primitive / Layout Match?** → Exact match: **`[REUSE]`**. Partial match (e.g. missing variant/size/method): **`[UPDATE]`** (verify in `### Confirmation`). Duplicate/obsolete file to remove: **`[DELETE]`**. None exists: **`[NEW]`** at `/components/[module]/[name].ui.tsx` or `/layouts/[category]/[name].layout.tsx`.
+   - **Root vs. Feature Scope?** → Used by **≥2 features or app-wide**: project root (`/types`, `/constants`, `/hooks`, `/utils`), or **`[PROMOTE]`** if moving up from 1 feature (marking the old feature-local copy **`[DELETE]`**). Used by **1 feature only**: `features/[feature]/`.
    - **Feature Component?** → `features/[feature]/components/[name]/` with `.component.tsx` (zero `className`), `.hook.ts`, `.type.ts`, exported via `[feature].feature.ts`.
    - **Next.js Page / Route (`app/**/page.tsx`, `app/**/layout.tsx`, `pages/**`)?** → **Server-Side Rendered (SSR / Server Component — never `'use client'`)**, zero custom `className`, importing **only** `.ui.tsx`, `.layout.tsx`, and `[feature].feature.ts`.
 3. **Step 3 — Output ONLY `### Proposed File Tree` and `### Confirmation`**:
    Before touching code files (unless the user explicitly says *"skip confirmation"*), output **only** these two sections:
-   - **`### Proposed File Tree`**: An ASCII tree of affected/reused files with a short `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE]` inline comment stating what each file does.
-   - **`### Confirmation`**: Numbered questions (`1.`, `2.`, `3.`...) for any decisions/clarifications needed and for confirming the implementation. Format every question with lettered options (`a.`, `b.`, `c.`...), mark the recommended choice with `(Recommended)`, and **always make the final option `[last letter]. Type your own answer`**.
+   - **`### Proposed File Tree`**: An ASCII tree of affected/reused files with a short `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE]` inline comment stating what each file does.
+   - **`### Confirmation`**:
+     - **Only ask clarifying questions when the user's prompt is genuinely unclear/ambiguous OR when an existing file requires verification before modifying/removing (`[UPDATE]`, `[PROMOTE]`, `[DELETE]`).**
+     - **NEVER invent random or filler questions** about things already settled by the prompt or by these architecture rules (e.g., never ask *"Should we export components from `.feature.ts`?"* or *"Should the page be SSR?"* — those are already mandatory rules).
+     - If the prompt is clear and no existing file modification is ambiguous, include **only** `1. Proceed with implementing this file tree?`.
+     - Format every item as a numbered question (`1.`, `2.`, ...) with lettered options (`a.`, `b.`, `c.`, ...), mark the recommended choice with `(Recommended)`, and **always make the final option `[last letter]. Type your own answer`**.
 
 ```markdown
 ### Proposed File Tree
@@ -65,10 +69,12 @@ Whenever the user asks to add, build, update, or refactor any feature, component
 ├── layouts/page/pageLayout.layout.tsx                     # [REUSE] Page structural wrapper
 └── features/apiTester/
     ├── apiTester.feature.ts                               # [NEW] Public feature entrypoint exporting MethodDropdown
-    └── components/methodDropdown/
-        ├── methodDropdown.component.tsx                   # [NEW] Pure JSX view (zero className)
-        ├── methodDropdown.hook.ts                         # [NEW] Dropdown selection state & handlers
-        └── methodDropdown.type.ts                         # [NEW] Props & dropdown types
+    └── components/
+        ├── dropdownHttpBadge/                             # [DELETE] Remove duplicate feature-local badge in favor of HttpBadge
+        └── methodDropdown/
+            ├── methodDropdown.component.tsx               # [NEW] Pure JSX view (zero className)
+            ├── methodDropdown.hook.ts                     # [NEW] Dropdown selection state & handlers
+            └── methodDropdown.type.ts                     # [NEW] Props & dropdown types
 ```
 
 ### Confirmation
