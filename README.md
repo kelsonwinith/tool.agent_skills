@@ -16,18 +16,19 @@ Then run `/project-workflow [what you want to add, update, or remove]`:
 /project-workflow "add order cancellation"
    │
    ├─► Stage 0: Bootstrap & Web UI       (auto-detect stack & launch browser dashboard at http://localhost:4321)
-   ├─► Stage 1: /project-grill          (design-tree interview + glossary/requirement check) ──► [PAUSE FOR APPROVAL]
-   ├─► Stage 2: /project-documentation  (sync docs/ singletons, flows, ADRs + run linters)   ──► [PAUSE FOR APPROVAL]
-   ├─► Stage 3: /project-plan           (scan layers + output ONLY ### Proposed File Tree)   ──► [PAUSE FOR APPROVAL]
-   └─► Stage 4: /project-implement      (write code per stack architecture + run checks)     ──► [FINAL SIGN-OFF]
+   ├─► Stage 1: /project-grill          (🔒 FORCED: design-tree interview + conflict check)  ──► [PAUSE FOR APPROVAL]
+   ├─► Stage 2: /project-documentation  (TOGGLEABLE: sync docs/, flows, ADRs + linters)      ──► [PAUSE FOR APPROVAL]
+   ├─► Stage 3: /project-plan           (TOGGLEABLE: scan layers + ONLY ### Proposed File Tree)──► [PAUSE FOR APPROVAL]
+   └─► Stage 4: /project-implement      (🔒 FORCED: code implementation & verification)      ──► [FINAL SIGN-OFF]
 ```
 
 ### Dual-Mode Interactive Web UI
 
 `/project-workflow` automatically starts a zero-dependency local dashboard in your browser (`http://localhost:4321`):
-- **Visual Stepper**: Watch the 4-stage pipeline advance in real time.
+- **Visual Stepper**: Watch the 4-stage pipeline advance in real time, with skipped stages struck through.
+- **Pipeline & Skills Config**: View attached skills per stage, toggle optional stages on/off (Stage 2 Docs and Stage 3 Plan), and switch architecture stacks (`React / Next.js`, `Go Hexagonal`, or `Generic Clean`).
 - **Stage Artifact Viewer**: Inspect grilling questions, updated `docs/`, colored `### Proposed File Tree` badges (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`), and verification output.
-- **Interactive Input Bar**: Type instructions, answers, or adjustments directly in the browser and click **`Approve & Next Step`** (or `Cmd/Ctrl + Enter`), or reply directly in terminal chat—both remain synchronized.
+- **Interactive Action Bar**: Type instructions, answers, or adjustments directly in the browser and click **`Approve & Next Step`** (or `Cmd/Ctrl + Enter`), or reply directly in terminal chat—both remain synchronized.
 
 ## Documentation Structure (`project-documentation`)
 
@@ -52,11 +53,11 @@ docs/
 
 | Skill | Role | What it does |
 | :--- | :--- | :--- |
-| [`project-workflow`](skills/project-workflow/) | **Orchestrator** | Master `/project-workflow` entrypoint with local Web UI companion. Auto-installs missing companion/stack skills and drives the 4 approval-gated stages in sequence. |
-| [`project-grill`](skills/project-grill/) | **Stage 1 — Grill** | Silently inspects code & `docs/`, flags terminology or requirement conflicts, asks numbered design-tree questions with `(Recommended)` proposals, and outputs an Agreed Design Summary. |
+| [`project-workflow`](skills/project-workflow/) | **Orchestrator** | Master `/project-workflow` entrypoint with Web UI companion. Supports forced/locked stages, stage skipping, stack switching, and auto-bootstrapping companion skills. |
+| [`project-grill`](skills/project-grill/) | **Stage 1 — Grill (🔒)** | Silently inspects code & `docs/`, flags terminology or requirement conflicts, asks numbered design-tree questions with `(Recommended)` proposals, and outputs an Agreed Design Summary. |
 | [`project-documentation`](skills/project-documentation/) | **Stage 2 — Docs** | Documentation guardian: flat canonical singletons (`docs/ubiquitous-language.md` bound to code identifiers, `product.md`, `architecture.md`, `development.md`), numbered `docs/flows/<NNN>-<name>.md`, one-file-per-decision `docs/decisions/<NNN>-<name>.md`, and deterministic validators. |
 | [`project-plan`](skills/project-plan/) | **Stage 3 — Plan** | Scans existing project layers to prevent duplication, schedules glossary-driven code renames, and outputs **only** the annotated `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`). |
-| [`project-implement`](skills/project-implement/) | **Stage 4 — Implement** | Executes the approved `### Proposed File Tree` following the active stack architecture skill and canonical glossary names, then runs code and documentation verification. |
+| [`project-implement`](skills/project-implement/) | **Stage 4 — Implement (🔒)** | Executes the approved `### Proposed File Tree` following the active stack architecture skill and canonical glossary names, then runs code and documentation verification. |
 | [`project-react-architecture`](skills/project-react-architecture/) | **Stack — React/Next.js** | Layered React/Next.js SSR architecture with zero inline `className` in views/routes, strict root vs. feature scoping, `RequestState<T>`, and 5-line function doc blocks. |
 | [`project-go-architecture`](skills/project-go-architecture/) | **Stack — Go Hexagonal** | Strict Go Hexagonal Architecture (`Fiber v3` + `GORM` + `PostgreSQL` + `JWT` + `Swaggo`) with 3-segment filenames, 6-section banners, and explicit 3-block import aliasing. |
 

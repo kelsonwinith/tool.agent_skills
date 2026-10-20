@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+- Added Pipeline Stages & Skills configuration section to the Web UI dashboard:
+  - Enforced locked stages (Stage 1 Grill and Stage 4 Implement are locked 🔒 for flow integrity).
+  - Allowed toggling optional stages (Stage 2 Docs and Stage 3 Plan can be toggled on/off on the fly).
+  - Displayed attached skills per stage with active/inactive chips.
+  - Added interactive Stack Architecture Selector (`React / Next.js`, `Go Hexagonal`, `Generic Clean`).
+  - Added `--next-stage <N>` CLI option and automatic stage-skip logic.
+
 ## 1.2.0
 - Added interactive local Web UI companion (`scripts/workflow_ui.py`) serving an offline single-page stepper dashboard at `http://localhost:4321`.
 - Enabled Dual-Mode interaction: review stage artifacts, type instructions, and click "Approve & Next Step" or "Request Revisions" directly in the browser or via chat.

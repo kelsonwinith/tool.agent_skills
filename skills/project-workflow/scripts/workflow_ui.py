@@ -2,13 +2,16 @@
 """Interactive local Web UI companion for project-workflow.
 
 Starts a zero-dependency local HTTP server serving a single-page stepper
-dashboard. Persists synchronized workflow state to .workflow/state.json and
-allows the user to review stage artifacts, type instructions, and click
-'Approve & Next Step' or 'Request Revisions'.
+dashboard. Persists synchronized workflow state to .workflow/state.json,
+shows attached skills per stage, allows toggling optional stages (Docs, Plan)
+while enforcing locked stages (Grill, Implement), allows switching stack
+architecture skills, and allows users to review stage artifacts, type
+instructions, and click 'Approve & Next Step'.
 
 Usage (CLI):
     python scripts/workflow_ui.py --start [--port 4321] [--request "Add cancellation"]
     python scripts/workflow_ui.py --update --stage 1 --status waiting_approval --content "..."
+    python scripts/workflow_ui.py --next-stage 1   # Prints next enabled stage number (skipping disabled stages)
     python scripts/workflow_ui.py --wait [--timeout 600]
     python scripts/workflow_ui.py --stop
 """
@@ -28,18 +31,89 @@ import threading
 import time
 import urllib.parse
 import webbrowser
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 DEFAULT_PORT = 4321
 WORKFLOW_DIR_NAME = ".workflow"
 STATE_FILE_NAME = "state.json"
 
-STAGES = [
-    {"id": 1, "name": "Grill", "command": "/project-grill", "desc": "Design-tree interview & conflict check"},
-    {"id": 2, "name": "Docs", "command": "/project-documentation", "desc": "Ubiquitous language, flows & ADRs"},
-    {"id": 3, "name": "Plan", "command": "/project-plan", "desc": "Layer scan & Proposed File Tree"},
-    {"id": 4, "name": "Implement", "command": "/project-implement", "desc": "Code implementation & verification"},
-]
+
+def detect_project_stack(project_root: pathlib.Path) -> str:
+    pkg = project_root / "package.json"
+    if pkg.is_file():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+            deps: Dict[str, Any] = {}
+            for k in ("dependencies", "devDependencies", "peerDependencies"):
+                sec = data.get(k)
+                if isinstance(sec, dict):
+                    deps.update(sec)
+            if any(p in deps for p in ("react", "react-dom", "next")):
+                return "react"
+        except Exception:
+            pass
+
+    if (project_root / "go.mod").is_file():
+        return "go"
+
+    return "none"
+
+
+def default_stages(selected_stack: str = "none") -> List[Dict[str, Any]]:
+    react_enabled = selected_stack == "react"
+    go_enabled = selected_stack == "go"
+
+    return [
+        {
+            "id": 1,
+            "name": "Stage 1 — Grill",
+            "command": "/project-grill",
+            "enabled": True,
+            "locked": True,
+            "desc": "Design-tree interview & conflict check",
+            "skills": [
+                {"name": "project-grill", "role": "Required", "locked": True, "enabled": True}
+            ],
+        },
+        {
+            "id": 2,
+            "name": "Stage 2 — Docs",
+            "command": "/project-documentation",
+            "enabled": True,
+            "locked": False,
+            "desc": "Ubiquitous language, flows & ADRs",
+            "skills": [
+                {"name": "project-documentation", "role": "Docs Guardian", "locked": False, "enabled": True}
+            ],
+        },
+        {
+            "id": 3,
+            "name": "Stage 3 — Plan",
+            "command": "/project-plan",
+            "enabled": True,
+            "locked": False,
+            "desc": "Layer scan & Proposed File Tree",
+            "skills": [
+                {"name": "project-plan", "role": "File Tree Planner", "locked": True, "enabled": True},
+                {"name": "project-react-architecture", "role": "React Stack", "locked": False, "enabled": react_enabled, "group": "stack"},
+                {"name": "project-go-architecture", "role": "Go Stack", "locked": False, "enabled": go_enabled, "group": "stack"},
+            ],
+        },
+        {
+            "id": 4,
+            "name": "Stage 4 — Implement",
+            "command": "/project-implement",
+            "enabled": True,
+            "locked": True,
+            "desc": "Code implementation & verification",
+            "skills": [
+                {"name": "project-implement", "role": "Code & Verification", "locked": True, "enabled": True},
+                {"name": "project-react-architecture", "role": "React Stack", "locked": False, "enabled": react_enabled, "group": "stack"},
+                {"name": "project-go-architecture", "role": "Go Stack", "locked": False, "enabled": go_enabled, "group": "stack"},
+            ],
+        },
+    ]
+
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
@@ -75,22 +149,13 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   header {
     background: var(--card);
     border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
+    padding: 14px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
   }
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .brand h1 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-bright);
-    letter-spacing: -0.2px;
-  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand h1 { font-size: 17px; font-weight: 600; color: var(--text-bright); }
   .brand .tag {
     background: var(--accent-glow);
     color: var(--accent);
@@ -103,7 +168,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .request-banner {
     background: #090d13;
     border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
+    padding: 10px 24px;
     font-size: 13px;
     color: var(--text-dim);
     display: flex;
@@ -116,21 +181,19 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     grid-template-columns: repeat(4, 1fr);
     background: var(--card);
     border-bottom: 1px solid var(--border);
-    padding: 0;
   }
   .step {
-    padding: 14px 16px;
+    padding: 12px 16px;
     border-right: 1px solid var(--border);
     display: flex;
     align-items: center;
     gap: 12px;
-    cursor: default;
     transition: background 0.15s ease;
   }
   .step:last-child { border-right: none; }
   .step-num {
-    width: 28px;
-    height: 28px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     background: var(--border);
     color: var(--text-dim);
@@ -156,15 +219,105 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .step.active .step-title { color: var(--accent); }
   .step.completed .step-num { background: var(--green); color: #fff; }
   .step.completed .step-title { color: var(--text-bright); }
+  .step.skipped { opacity: 0.45; }
+  .step.skipped .step-title { text-decoration: line-through; }
+
+  /* Config / Skill Bar */
+  .config-section {
+    background: #090d13;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .stage-config-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .stage-config-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  .stage-toggle {
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    transition: all 0.15s ease;
+  }
+  .stage-toggle.enabled { background: rgba(46, 160, 67, 0.15); color: var(--green-bright); border-color: rgba(46, 160, 67, 0.4); }
+  .stage-toggle.locked { opacity: 0.8; cursor: not-allowed; background: var(--accent-glow); color: var(--accent); border-color: rgba(88, 166, 255, 0.3); }
+  .skill-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .skill-chip {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .skill-chip.active { border-color: var(--accent); color: var(--accent); }
+
+  /* Stack selector */
+  .stack-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .stack-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .stack-btn.selected {
+    background: var(--accent);
+    color: #0d1117;
+    font-weight: 600;
+    border-color: var(--accent);
+  }
+
   main {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 24px;
+    padding: 20px 24px;
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
-    gap: 20px;
+    gap: 16px;
   }
   .status-pill {
     display: inline-flex;
@@ -183,17 +336,17 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 20px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
   }
   .card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid var(--border);
-    padding-bottom: 12px;
+    padding-bottom: 10px;
   }
   .card-title { font-size: 15px; font-weight: 600; color: var(--text-bright); }
   .artifact-content {
@@ -207,7 +360,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     color: var(--text-bright);
     white-space: pre-wrap;
     overflow-x: auto;
-    max-height: 480px;
+    max-height: 440px;
     overflow-y: auto;
   }
   .badge-tag {
@@ -256,7 +409,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     border-radius: 6px;
     cursor: pointer;
     border: none;
-    transition: opacity 0.15s ease, background 0.15s ease;
+    transition: opacity 0.15s ease;
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -287,7 +440,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <h1>Project Workflow</h1>
     <span class="tag">Dual-Mode UI</span>
   </div>
-  <div class="hint">Synced with agent terminal</div>
+  <div class="stack-selector">
+    <span>Architecture Stack:</span>
+    <button class="stack-btn" id="stack-react" onclick="selectStack('react')">React / Next.js</button>
+    <button class="stack-btn" id="stack-go" onclick="selectStack('go')">Go Hexagonal</button>
+    <button class="stack-btn" id="stack-none" onclick="selectStack('none')">Generic Clean</button>
+  </div>
 </header>
 
 <div class="request-banner">
@@ -296,6 +454,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </div>
 
 <div class="stepper" id="stepper"></div>
+
+<div class="config-section">
+  <div class="config-header">
+    <span>PIPELINE STAGES &amp; SKILLS CONFIGURATION</span>
+    <span class="hint">Stages 1 &amp; 4 are locked 🔒 for flow integrity</span>
+  </div>
+  <div class="config-grid" id="configGrid"></div>
+</div>
 
 <main>
   <div id="statusPill" class="status-pill status-in_progress">Connecting...</div>
@@ -319,29 +485,25 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </main>
 
 <script>
-  const STAGES = [
-    { id: 1, name: "Stage 1 — Grill", cmd: "/project-grill", desc: "Design-tree interview" },
-    { id: 2, name: "Stage 2 — Docs", cmd: "/project-documentation", desc: "Sync glossary, flows & ADRs" },
-    { id: 3, name: "Stage 3 — Plan", cmd: "/project-plan", desc: "### Proposed File Tree" },
-    { id: 4, name: "Stage 4 — Implement", cmd: "/project-implement", desc: "Code & verification" }
-  ];
-
   let currentState = null;
 
-  function renderStepper(currentStage, status) {
+  function renderStepper(stages, currentStage, status) {
     const el = document.getElementById("stepper");
-    el.innerHTML = STAGES.map(s => {
+    el.innerHTML = (stages || []).map(s => {
       let cls = "step";
-      if (s.id < currentStage || (s.id === currentStage && status === "completed")) {
+      if (!s.enabled) {
+        cls += " skipped";
+      } else if (s.id < currentStage || (s.id === currentStage && status === "completed")) {
         cls += " completed";
       } else if (s.id === currentStage) {
         cls += " active";
       }
+      const numContent = !s.enabled ? "&#8212;" : (s.id < currentStage || (s.id === currentStage && status === "completed") ? "&#10003;" : s.id);
       return `
         <div class="${cls}">
-          <div class="step-num">${s.id < currentStage || (s.id === currentStage && status === "completed") ? "&#10003;" : s.id}</div>
+          <div class="step-num">${numContent}</div>
           <div class="step-info">
-            <div class="step-title">${s.name}</div>
+            <div class="step-title">${s.name} ${s.locked ? "🔒" : ""} ${!s.enabled ? "(Skipped)" : ""}</div>
             <div class="step-desc">${s.desc}</div>
           </div>
         </div>
@@ -349,17 +511,51 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }).join("");
   }
 
+  function renderConfigGrid(stages, selectedStack) {
+    const grid = document.getElementById("configGrid");
+    grid.innerHTML = (stages || []).map(s => {
+      const toggleLabel = s.locked ? "🔒 Locked" : (s.enabled ? "&#10003; Enabled" : "Skipped");
+      const toggleCls = s.locked ? "stage-toggle locked" : (s.enabled ? "stage-toggle enabled" : "stage-toggle");
+      const toggleDisabled = s.locked ? "disabled" : "";
+
+      const skillChips = (s.skills || []).map(sk => {
+        let isVis = sk.enabled;
+        if (sk.group === "stack") {
+          isVis = (sk.name === "project-react-architecture" && selectedStack === "react") ||
+                  (sk.name === "project-go-architecture" && selectedStack === "go");
+        }
+        if (!isVis && sk.group === "stack") return "";
+        return `<span class="skill-chip ${isVis ? 'active' : ''}">${sk.name}</span>`;
+      }).filter(Boolean).join("");
+
+      return `
+        <div class="stage-config-card">
+          <div class="stage-config-title">
+            <span>${s.name}</span>
+            <button class="${toggleCls}" ${toggleDisabled} onclick="toggleStage(${s.id})">${toggleLabel}</button>
+          </div>
+          <div class="skill-chips">${skillChips || '<span class="hint">No stack skill</span>'}</div>
+        </div>
+      `;
+    }).join("");
+
+    // Update stack buttons
+    ["react", "go", "none"].forEach(st => {
+      const btn = document.getElementById("stack-" + st);
+      if (btn) btn.className = st === selectedStack ? "stack-btn selected" : "stack-btn";
+    });
+  }
+
   function highlightArtifact(text) {
     if (!text) return "No content.";
-    // Highlight file tree action tags
-    return text
-      .replace(/\\[(NEW|UPDATE|REUSE|PROMOTE|DELETE)\\]/g, '<span class="badge-tag tag-$1">[$1]</span>');
+    return text.replace(/\\[(NEW|UPDATE|REUSE|PROMOTE|DELETE)\\]/g, '<span class="badge-tag tag-$1">[$1]</span>');
   }
 
   function updateUI(state) {
     currentState = state;
     document.getElementById("requestText").textContent = state.request || "Running project-workflow";
-    renderStepper(state.current_stage || 1, state.status || "in_progress");
+    renderStepper(state.stages, state.current_stage || 1, state.status || "in_progress");
+    renderConfigGrid(state.stages, state.selected_stack || "none");
 
     const pill = document.getElementById("statusPill");
     const label = (state.status || "in_progress").replace("_", " ").toUpperCase();
@@ -386,6 +582,38 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       }
     } catch (e) {
       console.error("Poll error", e);
+    }
+  }
+
+  async function toggleStage(stageId) {
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toggle_stage: stageId })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updateUI(data);
+      }
+    } catch (e) {
+      alert("Failed to toggle stage: " + e.message);
+    }
+  }
+
+  async function selectStack(stackName) {
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selected_stack: stackName })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updateUI(data);
+      }
+    } catch (e) {
+      alert("Failed to set stack: " + e.message);
     }
   }
 
@@ -437,12 +665,15 @@ def get_state_path(project_root: pathlib.Path) -> pathlib.Path:
 def read_state(project_root: pathlib.Path) -> Dict[str, Any]:
     path = get_state_path(project_root)
     if not path.is_file():
+        detected = detect_project_stack(project_root)
         return {
             "current_stage": 1,
             "status": "in_progress",
             "request": "",
             "stage_title": "Stage 1 — Grill",
             "content": "",
+            "selected_stack": detected,
+            "stages": default_stages(detected),
             "pending_action": None,
             "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
@@ -457,6 +688,14 @@ def write_state(project_root: pathlib.Path, state: Dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     state["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def get_next_enabled_stage(state: Dict[str, Any], current_stage: int) -> Optional[int]:
+    stages = state.get("stages", [])
+    for s in stages:
+        if s.get("id", 0) > current_stage and s.get("enabled", True):
+            return s.get("id")
+    return None
 
 
 def find_free_port(start_port: int = DEFAULT_PORT) -> int:
@@ -474,7 +713,7 @@ class WorkflowHTTPHandler(http.server.BaseHTTPRequestHandler):
     server_instance: Optional[socketserver.TCPServer] = None
 
     def log_message(self, format: str, *args: Any) -> None:
-        return  # Silence server stdout logs
+        return
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
@@ -495,10 +734,11 @@ class WorkflowHTTPHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        length = int(self.headers.get("Content-Length", 0))
+        payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+        state = read_state(self.project_root)
+
         if parsed.path == "/api/action":
-            length = int(self.headers.get("Content-Length", 0))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            state = read_state(self.project_root)
             state["pending_action"] = {
                 "action": payload.get("action", "approve"),
                 "text": payload.get("text", "").strip(),
@@ -510,6 +750,29 @@ class WorkflowHTTPHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
             self.wfile.write(json.dumps(state).encode("utf-8"))
+
+        elif parsed.path == "/api/config":
+            if "toggle_stage" in payload:
+                target_id = payload["toggle_stage"]
+                for s in state.get("stages", []):
+                    if s.get("id") == target_id and not s.get("locked"):
+                        s["enabled"] = not s.get("enabled", True)
+
+            if "selected_stack" in payload:
+                new_stack = payload["selected_stack"]
+                state["selected_stack"] = new_stack
+                for s in state.get("stages", []):
+                    for sk in s.get("skills", []):
+                        if sk.get("group") == "stack":
+                            sk["enabled"] = (sk["name"] == "project-react-architecture" and new_stack == "react") or \
+                                            (sk["name"] == "project-go-architecture" and new_stack == "go")
+
+            write_state(self.project_root, state)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(json.dumps(state).encode("utf-8"))
+
         elif parsed.path == "/api/stop":
             self.send_response(200)
             self.end_headers()
@@ -564,12 +827,15 @@ def stop_server(project_root: pathlib.Path) -> None:
 def cmd_start(args: argparse.Namespace) -> int:
     root = pathlib.Path(args.root).resolve()
     port = find_free_port(args.port)
+    detected = detect_project_stack(root)
     initial_state = {
         "current_stage": 1,
         "status": "in_progress",
         "request": args.request or "",
         "stage_title": "Stage 1 — Grill",
         "content": "Starting Stage 1 (/project-grill)... Inspecting repository and checking terminology.",
+        "selected_stack": detected,
+        "stages": default_stages(detected),
         "pending_action": None,
         "port": port,
     }
@@ -583,7 +849,6 @@ def cmd_start(args: argparse.Namespace) -> int:
     print(json.dumps({"status": "running", "url": url, "port": actual_port, "state_file": str(get_state_path(root))}))
 
     if args.daemon:
-        # Run server until terminated
         try:
             while True:
                 time.sleep(1)
@@ -619,6 +884,14 @@ def cmd_update(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_next_stage(args: argparse.Namespace) -> int:
+    root = pathlib.Path(args.root).resolve()
+    state = read_state(root)
+    next_stage = get_next_enabled_stage(state, args.from_stage)
+    print(json.dumps({"from_stage": args.from_stage, "next_enabled_stage": next_stage}))
+    return 0
+
+
 def cmd_wait(args: argparse.Namespace) -> int:
     root = pathlib.Path(args.root).resolve()
     start_time = time.time()
@@ -628,7 +901,6 @@ def cmd_wait(args: argparse.Namespace) -> int:
         state = read_state(root)
         action = state.get("pending_action")
         if action:
-            # Clear pending action after reading
             state["pending_action"] = None
             write_state(root, state)
             print(json.dumps(action))
@@ -654,6 +926,7 @@ def main(argv: Optional[list] = None) -> int:
     sub = parser.add_mutually_exclusive_group(required=True)
     sub.add_argument("--start", action="store_true", help="Start the workflow Web UI server")
     sub.add_argument("--update", action="store_true", help="Update the stage content and status")
+    sub.add_argument("--next-stage", dest="from_stage", type=int, help="Get next enabled stage skipping disabled stages")
     sub.add_argument("--wait", action="store_true", help="Wait for user action from the Web UI")
     sub.add_argument("--stop", action="store_true", help="Stop server and clean up .workflow/")
 
@@ -679,6 +952,8 @@ def main(argv: Optional[list] = None) -> int:
         return cmd_start(args)
     if args.update:
         return cmd_update(args)
+    if args.from_stage is not None:
+        return cmd_next_stage(args)
     if args.wait:
         return cmd_wait(args)
     if args.stop:
