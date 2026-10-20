@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Validate Architecture Decision Records under a decisions directory.
+"""Validate Architecture Decision Records under docs/decisions/<NNN>-<kebab-name>.md.
 
 Checks (see SKILL.md):
-  1. ADR headings follow '# ADR-<NNN>: <title>'.
-  2. ADR IDs are unique and sequential (ADR-001, ADR-002, ...); gaps are flagged.
-  3. Each ADR has Status, Context, Decision, and Consequences sections.
-  4. Status is one of Proposed | Accepted | Deprecated | Superseded.
+  1. Each file under docs/decisions/ is named `<NNN>-<kebab-name>.md` and contains a single ADR.
+  2. ADR heading follows `# ADR-<NNN>: <title>` and `<NNN>` matches the filename prefix.
+  3. ADR IDs are unique and sequential (ADR-001, ADR-002, ...); gaps are flagged.
+  4. Each ADR has Status, Context, Decision, and Consequences sections.
+  5. Status is one of Proposed | Accepted | Deprecated | Superseded.
 
 Usage:
     python scripts/adr_scan.py [decisions_dir]   # defaults to docs/decisions
@@ -18,6 +19,7 @@ import re
 import sys
 from pathlib import Path
 
+FILENAME_RE = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 ADR_RE = re.compile(r"^#\s+ADR-(\d+):\s*(.*)$")
 SECTION_RE = re.compile(r"^##\s+(.+?)\s*$")
 REQUIRED_SECTIONS = ["status", "context", "decision", "consequences"]
@@ -46,8 +48,28 @@ def lint(decisions_dir: Path):
 
     found = []  # (adr_id, file, line)
     for path in sorted(decisions_dir.rglob("*.md")):
-        for adr_id, title, block, line_number in parse_adrs(path):
+        file_match = FILENAME_RE.match(path.name)
+        expected_file_id = int(file_match.group(1)) if file_match else None
+        if not file_match:
+            failures.append(
+                f"{path}: ADR file must be named <NNN>-<kebab-name>.md (one file per ADR)"
+            )
+
+        file_adrs = list(parse_adrs(path))
+        if not file_adrs:
+            failures.append(f"{path}: no '# ADR-<NNN>: <Title>' heading found")
+            continue
+        if len(file_adrs) > 1:
+            failures.append(
+                f"{path}: contains {len(file_adrs)} ADRs — keep one ADR per numbered file in decisions/"
+            )
+
+        for adr_id, title, block, line_number in file_adrs:
             found.append((adr_id, path, line_number))
+            if expected_file_id is not None and adr_id != expected_file_id:
+                failures.append(
+                    f"{path}:{line_number}: heading ADR-{adr_id:03d} does not match file prefix {expected_file_id:03d}"
+                )
             if not title:
                 warnings.append(f"{path}:{line_number}: ADR-{adr_id:03d} has no title")
 
@@ -65,9 +87,9 @@ def lint(decisions_dir: Path):
 
             status_index = sections.get("status")
             if status_index is not None:
-                for raw in block[status_index + 1:]:
+                for raw in block[status_index + 1 :]:
                     value = raw.strip()
-                    if not value:
+                    if not value or value.startswith("<!--"):
                         continue
                     if not value.lower().startswith(VALID_STATUS):
                         warnings.append(
@@ -105,7 +127,12 @@ def lint(decisions_dir: Path):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("decisions_dir", nargs="?", default="docs/decisions", help="path to the decisions directory (default: docs/decisions)")
+    parser.add_argument(
+        "decisions_dir",
+        nargs="?",
+        default="docs/decisions",
+        help="path to the decisions directory (default: docs/decisions)",
+    )
     args = parser.parse_args()
 
     failures, warnings = lint(Path(args.decisions_dir))

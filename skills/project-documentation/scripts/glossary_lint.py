@@ -20,7 +20,8 @@ Checks:
 Usage:
     python scripts/glossary_lint.py [glossary.md] [--scan PATH ...]
 
-With no path, discovers docs/context/*.md (excluding *context-map*).
+With no path, discovers `docs/ubiquitous-language.md` (single-context) or
+`docs/context/*.md` (excluding `context-map.md`, for multi-context repos).
 Exit code is 1 when any FAIL is reported, 0 otherwise.
 """
 
@@ -66,9 +67,11 @@ def parse_terms(text):
             continue
         if columns is None:
             continue
+
         def cell(key):
             idx = columns.get(key)
             return cells[idx] if idx is not None and idx < len(cells) else ""
+
         term = cell("term")
         meaning = cell("meaning")
         avoid = cell("avoid")
@@ -81,11 +84,28 @@ def parse_terms(text):
 
 def discover_glossary(explicit):
     if explicit:
-        return [Path(explicit)]
+        path = Path(explicit)
+        if path.is_dir():
+            files = []
+            root_glossary = path / "ubiquitous-language.md"
+            if root_glossary.is_file():
+                files.append(root_glossary)
+            context_dir = path / "context"
+            if context_dir.is_dir():
+                files.extend(
+                    p for p in sorted(context_dir.glob("*.md")) if "context-map" not in p.name.lower()
+                )
+            return files
+        return [path]
+
+    found = []
+    root_glossary = Path("docs/ubiquitous-language.md")
+    if root_glossary.is_file():
+        found.append(root_glossary)
     context_dir = Path("docs/context")
-    if not context_dir.is_dir():
-        return []
-    return [p for p in sorted(context_dir.glob("*.md")) if "context-map" not in p.name.lower()]
+    if context_dir.is_dir():
+        found.extend(p for p in sorted(context_dir.glob("*.md")) if "context-map" not in p.name.lower())
+    return found
 
 
 def scan_for_synonyms(synonyms, scan_paths, glossary_path):
@@ -159,13 +179,13 @@ def lint(path: Path, scan_paths):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("glossary", nargs="?", help="path to the glossary markdown file")
+    parser.add_argument("glossary", nargs="?", help="path to the glossary markdown file or docs directory")
     parser.add_argument("--scan", nargs="*", default=[], help="paths to scan for avoided synonyms")
     args = parser.parse_args()
 
     glossary_files = discover_glossary(args.glossary)
     if not glossary_files:
-        print("WARN  no glossary found (looked for docs/context/*.md)")
+        print("WARN  no glossary found (looked for docs/ubiquitous-language.md and docs/context/*.md)")
         return 0
 
     all_failures = []

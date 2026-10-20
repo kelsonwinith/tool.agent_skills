@@ -1,32 +1,31 @@
 #!/usr/bin/env python3
-"""Bootstrap the docs/ tree: subfolders, an index, and the canonical-context glossary.
+"""Bootstrap the docs/ tree: flat singleton files + numbered flows/ and decisions/ folders.
 
 Idempotent: existing files are left untouched. It creates structure only — never
 invent requirements. Run `docs_lint.py` afterwards to confirm the layout.
 
 Usage:
-    python scripts/init_docs.py [--docs docs] [--context-name NAME]
+    python scripts/init_docs.py [--docs docs] [--context-name NAME] [--description DESC]
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-SUBFOLDERS = ["context", "product", "architecture", "decisions", "development"]
+NUMBERED_SUBFOLDERS = ["flows", "decisions"]
 
 INDEX_TEMPLATE = """# Documentation Index
 
 {description}
 
-| Subfolder | Purpose |
+| Path | Purpose |
 | :--- | :--- |
-| `context/` | Canonical language and domain vocabulary |
-| `product/` | Product requirements and domain behavior |
-| `architecture/` | System design and technical contracts |
-| `decisions/` | Architecture Decision Records |
-| `development/` | Build, verify, and contribute |
-
-Documents are named `docs/<subfolder>/<NNN>-<kebab-name>.md`.
+| [`ubiquitous-language.md`](./ubiquitous-language.md) | Canonical language and domain vocabulary (`Term \\| Meaning \\| Avoid`) |
+| [`product.md`](./product.md) | Core product scope, personas, and global business rules |
+| [`architecture.md`](./architecture.md) | System design, code structure, data model, and API contracts |
+| [`development.md`](./development.md) | Setup, build, test, and verification commands |
+| [`flows/`](./flows/) | Numbered user and system flows (`docs/flows/<NNN>-<kebab-name>.md`) |
+| [`decisions/`](./decisions/) | Numbered Architecture Decision Records (`docs/decisions/<NNN>-<kebab-name>.md`) |
 """
 
 GLOSSARY_TEMPLATE = """# {context_name}
@@ -40,6 +39,30 @@ GLOSSARY_TEMPLATE = """# {context_name}
 | Term | Meaning | Avoid |
 | :--- | :--- | :--- |
 """
+
+SINGLETON_TEMPLATES = {
+    "product.md": """# Product Overview & Business Rules
+
+**Document Version**: 0.1.0
+**Status**: Draft
+
+<!-- TODO: Document verified product scope, personas, and global business rules. -->
+""",
+    "architecture.md": """# System Architecture
+
+**Document Version**: 0.1.0
+**Status**: Draft
+
+<!-- TODO: Document verified system design, code structure, data models, and API contracts. -->
+""",
+    "development.md": """# Development Guide
+
+**Document Version**: 0.1.0
+**Status**: Draft
+
+<!-- TODO: Document verified setup, build, test, and lint commands. -->
+""",
+}
 
 
 def main() -> int:
@@ -55,7 +78,9 @@ def main() -> int:
     created = []
     existing = []
 
-    for subfolder in SUBFOLDERS:
+    docs.mkdir(parents=True, exist_ok=True)
+
+    for subfolder in NUMBERED_SUBFOLDERS:
         path = docs / subfolder
         path.mkdir(parents=True, exist_ok=True)
         keep = path / ".gitkeep"
@@ -67,12 +92,11 @@ def main() -> int:
     if index.exists():
         existing.append(index)
     else:
-        index.parent.mkdir(parents=True, exist_ok=True)
         index.write_text(INDEX_TEMPLATE.format(description=description), encoding="utf-8")
         created.append(index)
 
-    glossary = docs / "context" / "001-ubiquitous-language.md"
-    if glossary.exists():
+    glossary = docs / "ubiquitous-language.md"
+    if glossary.exists() or (docs / "context").is_dir():
         existing.append(glossary)
     else:
         glossary.write_text(
@@ -81,19 +105,28 @@ def main() -> int:
         )
         created.append(glossary)
 
+    for filename, template in SINGLETON_TEMPLATES.items():
+        target = docs / filename
+        if target.exists():
+            existing.append(target)
+        else:
+            target.write_text(template, encoding="utf-8")
+            created.append(target)
+
     for path in created:
         print(f"CREATE  {path}")
     for path in existing:
         print(f"SKIP    {path} (already exists)")
 
     # Drop placeholder .gitkeep files once a folder has real content.
-    for subfolder in SUBFOLDERS:
+    for subfolder in NUMBERED_SUBFOLDERS:
         keep = docs / subfolder / ".gitkeep"
         if keep.exists() and any(p.name != ".gitkeep" for p in keep.parent.iterdir()):
             keep.unlink()
 
-    print(f"\nNext: populate docs/context/001-ubiquitous-language.md with verified domain terms,")
-    print("then document verified facts in the other subfolders. Run scripts/docs_lint.py to check.")
+    print("\nNext: populate docs/ubiquitous-language.md with verified domain terms,")
+    print("fill in docs/{product,architecture,development}.md, and add flows via scripts/new_doc.py.")
+    print("Run scripts/docs_lint.py to check.")
     return 0
 
 

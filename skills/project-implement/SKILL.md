@@ -3,7 +3,7 @@ name: project-implement
 description: "Stage 4 of the project workflow (/project-implement): execute the user-approved ### Proposed File Tree following the active stack architecture skill (project-react-architecture, project-go-architecture, or clean architecture) and canonical glossary terms, then run deterministic verification (tests, typecheck, build, and documentation linters). Use after /project-plan is approved or when the user invokes /project-implement."
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Project Implement (Stage 4)
@@ -26,7 +26,7 @@ Follow the exact `[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, and `[DELETE]` ent
 
 ## 2. Enforce Canonical Glossary Names in Code
 
-Every domain concept in code must use the exact canonical term from `docs/context/001-ubiquitous-language.md` (adjusted only for language casing conventions):
+Every domain concept in code must use the exact canonical term from `docs/ubiquitous-language.md` (or `docs/context/*.md` if multi-context), adjusted only for language casing conventions:
 
 - `Buyer` in glossary → `buyer`, `Buyer`, `buyerId`, `BuyerCard`, `useBuyer`, `fetchBuyers` in code.
 - Never introduce a synonym listed in the glossary's `Avoid` column into variable names, type names, DTO fields, route paths, or DB column names.
@@ -58,7 +58,7 @@ Before finishing Stage 4, run all applicable checks from the project root and fi
    - **Go Hexagonal**: Run `make fmt`, `make swagger` (if DTOs/handlers changed), `make test`, and `make build`.
    - **Other stacks**: Run the repository's standard test and build suite.
 2. **Documentation & Glossary Verification**:
-   - If `docs/` exists, run `docs_lint.py`, `glossary_lint.py`, and `adr_scan.py` from `project-documentation/scripts/` to guarantee docs and code stayed 100% synchronized.
+   - If `docs/` exists, run `docs_lint.py`, `glossary_lint.py`, and `adr_scan.py` from `project-documentation/scripts/` to guarantee docs, flows, and code stayed 100% synchronized.
 
 ---
 

@@ -48,5 +48,5 @@ Reference companion for `project-plan` (Stage 3). Pick the matrix matching the r
 | Does an existing shared helper, type, or component already cover this? | Reuse or extend in place | `[REUSE]` or `[UPDATE]` existing shared file |
 | Is code used across **≥2 modules/features**? | Place or promote to root/shared layer | `[NEW]` or `[PROMOTE]` shared directory (and `[DELETE]` old module-local file) |
 | Is code specific to **1 domain module/feature**? | Keep encapsulated inside that module | `[NEW]` or `[UPDATE]` module directory |
-| Did a glossary term rename in `docs/context/001-ubiquitous-language.md`? | Rename file and/or update all identifiers inside affected files | `[UPDATE]` or `[NEW]`/`[DELETE]` affected code files |
-| Was a feature or endpoint removed? | Delete dead files and prune references | `[DELETE]` obsolete files + `[UPDATE]` callers/routers |
+| Did a glossary term rename in `docs/ubiquitous-language.md`? | Rename file and/or update all identifiers inside affected files | `[UPDATE]` or `[NEW]`/`[DELETE]` affected code files |
+| Was a feature, flow, or endpoint removed? | Delete dead files and prune references | `[DELETE]` obsolete files + `[UPDATE]` callers/routers |

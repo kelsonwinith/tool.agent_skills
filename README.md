@@ -17,9 +17,28 @@ Then run `/project-workflow [what you want to add, update, or remove]`:
    │
    ├─► Stage 0: Bootstrap               (auto-detect stack & install missing companion skills)
    ├─► Stage 1: /project-grill          (design-tree interview + glossary/requirement check) ──► [PAUSE FOR APPROVAL]
-   ├─► Stage 2: /project-documentation  (sync docs/, glossary, ADRs + run doc linters)       ──► [PAUSE FOR APPROVAL]
+   ├─► Stage 2: /project-documentation  (sync docs/ singletons, flows, ADRs + run linters)   ──► [PAUSE FOR APPROVAL]
    ├─► Stage 3: /project-plan           (scan layers + output ONLY ### Proposed File Tree)   ──► [PAUSE FOR APPROVAL]
    └─► Stage 4: /project-implement      (write code per stack architecture + run checks)     ──► [FINAL SIGN-OFF]
+```
+
+## Documentation Structure (`project-documentation`)
+
+Singletons sit flat without running numbers; ordered multi-item collections use `<NNN>-<name>.md`:
+
+```text
+docs/
+├── README.md                              # Documentation index
+├── ubiquitous-language.md                 # Single canonical glossary (Term | Meaning | Avoid)
+├── product.md                             # Core product overview, personas & global business rules
+├── architecture.md                        # System architecture, code structure, data model & APIs
+├── development.md                         # Setup, build, test, and verification commands
+├── flows/                                 # Running number per user/system flow
+│   ├── 001-create-order.md
+│   └── 002-cancel-order.md
+└── decisions/                             # Running number per ADR (one file per decision)
+    ├── 001-store-orders-in-memory.md
+    └── 002-hexagonal-module-boundary.md
 ```
 
 ## Skills
@@ -28,7 +47,7 @@ Then run `/project-workflow [what you want to add, update, or remove]`:
 | :--- | :--- | :--- |
 | [`project-workflow`](skills/project-workflow/) | **Orchestrator** | Master `/project-workflow` entrypoint. Auto-installs missing companion/stack skills and drives the 4 approval-gated stages in sequence. |
 | [`project-grill`](skills/project-grill/) | **Stage 1 — Grill** | Silently inspects code & `docs/`, flags terminology or requirement conflicts, asks numbered design-tree questions with `(Recommended)` proposals, and outputs an Agreed Design Summary. |
-| [`project-documentation`](skills/project-documentation/) | **Stage 2 — Docs** | Documentation guardian: canonical ubiquitous-language glossary (`docs/context/001-ubiquitous-language.md` bound to code identifiers), numbered `docs/` tree, ADRs, and deterministic validators. |
+| [`project-documentation`](skills/project-documentation/) | **Stage 2 — Docs** | Documentation guardian: flat canonical singletons (`docs/ubiquitous-language.md` bound to code identifiers, `product.md`, `architecture.md`, `development.md`), numbered `docs/flows/<NNN>-<name>.md`, one-file-per-decision `docs/decisions/<NNN>-<name>.md`, and deterministic validators. |
 | [`project-plan`](skills/project-plan/) | **Stage 3 — Plan** | Scans existing project layers to prevent duplication, schedules glossary-driven code renames, and outputs **only** the annotated `### Proposed File Tree` (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`). |
 | [`project-implement`](skills/project-implement/) | **Stage 4 — Implement** | Executes the approved `### Proposed File Tree` following the active stack architecture skill and canonical glossary names, then runs code and documentation verification. |
 | [`project-react-architecture`](skills/project-react-architecture/) | **Stack — React/Next.js** | Layered React/Next.js SSR architecture with zero inline `className` in views/routes, strict root vs. feature scoping, `RequestState<T>`, and 5-line function doc blocks. |

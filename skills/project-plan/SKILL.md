@@ -3,7 +3,7 @@ name: project-plan
 description: "Stage 3 of the project workflow (/project-plan): pre-implementation codebase scan and annotated ### Proposed File Tree gate. Use after documentation sync (/project-documentation) or whenever planning file additions, updates, reuse, promotions, or deletions before writing code. Scans existing layers to prevent duplicate primitives/modules, schedules glossary-driven identifier renames across files, applies stack-specific architecture rules (project-react-architecture, project-go-architecture, or clean architecture), outputs ONLY ### Proposed File Tree ([NEW], [UPDATE], [REUSE], [PROMOTE], [DELETE]), and pauses for user approval before implementation."
 license: MIT
 metadata:
-  version: 1.0.0
+  version: 1.1.0
 ---
 
 # Project Plan — Proposed File Tree Gate (Stage 3)
@@ -21,7 +21,7 @@ Inspect the workspace before proposing any file paths:
    - **Go Hexagonal (`go.mod`)**: Load `project-go-architecture` and apply its 3-segment `<scope>_<layer>_<name>.go` rules across `internal/modules/<module>/{domain,application,adapter}`, `internal/infrastructure/`, `internal/shared/`, and `internal/bootstrap/`.
    - **Other Stacks**: Follow the repository's established module boundaries, separating shared primitives/utilities from single-domain modules.
 2. **Eliminate Duplication**: Search existing shared primitives, layouts, helpers, ports, and domain models so nothing is duplicated when an existing file can be `[REUSE]`d, `[UPDATE]`d, or `[PROMOTE]`d.
-3. **Include Glossary Identifier Renames**: Check `docs/context/001-ubiquitous-language.md`. If a canonical term was renamed or reconciled in Stages 1–2, find every code file carrying the old term (`client` → `buyer`, `ClientCard` → `BuyerCard`, etc.) and include those files in the tree as `[UPDATE]` or `[PROMOTE]`/`[DELETE]`.
+3. **Include Glossary Identifier Renames**: Check `docs/ubiquitous-language.md` (or `docs/context/*.md` if multi-context). If a canonical term was renamed or reconciled in Stages 1–2, find every code file carrying the old term (`client` → `buyer`, `ClientCard` → `BuyerCard`, etc.) and include those files in the tree as `[UPDATE]` or `[PROMOTE]`/`[DELETE]`.
 
 ---
 
@@ -33,7 +33,7 @@ Assign one of the five canonical tags to every touched or referenced file (full 
 - **`[UPDATE]`** — Existing file being modified (adding a variant/field/route, updating logic, or renaming identifiers to match the canonical glossary).
 - **`[REUSE]`** — Existing primitive, layout, port, or shared utility used as-is without modification.
 - **`[PROMOTE]`** — Moving a single-feature file up to project-wide shared scope because ≥2 features now use it (always paired with `[DELETE]` on its old feature-local path).
-- **`[DELETE]`** — Removing an obsolete, duplicate, or promoted file, or pruning code for a removed feature.
+- **`[DELETE]`** — Removing an obsolete, duplicate, or promoted file, or pruning code for a removed feature or flow.
 
 ---
 

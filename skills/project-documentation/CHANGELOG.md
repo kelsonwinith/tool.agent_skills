@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0
+- Redesigned `docs/` tree to eliminate unnecessary running numbers and nested singletons:
+  - Flattened singletons directly under `docs/` without running numbers: `docs/README.md`, `docs/ubiquitous-language.md`, `docs/product.md`, `docs/architecture.md`, `docs/development.md`.
+  - Running numbers (`<NNN>-<kebab-name>.md`) are now used **only** for multi-item collections: `docs/flows/<NNN>-<kebab-name>.md` and `docs/decisions/<NNN>-<kebab-name>.md` (one file per ADR).
+  - Multi-context repositories use unnumbered `docs/context/context-map.md` and `docs/context/<context-name>.md`.
+- Added standardized 4-section Structured Flow template (`## Overview & Actor`, `## Business Rules`, `## Flow Steps`, `## Edge Cases & Errors`).
+- Updated all bundled helpers (`init_docs.py`, `new_doc.py`, `docs_lint.py`, `glossary_lint.py`, `adr_scan.py`) and expanded test suite to 14 unit tests.
+
 ## 1.5.0
 - Integrated as Stage 2 of the `project-workflow` pipeline with an explicit post-validation approval gate.
 - Extracted pre-implementation grilling and mismatch interview prompts into the dedicated `project-grill` (Stage 1) skill so grilling and documentation sync no longer overlap.

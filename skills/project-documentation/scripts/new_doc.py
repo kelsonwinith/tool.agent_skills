@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Create a new document with the next free number in a docs subfolder.
+"""Create a new numbered document in docs/flows/ or docs/decisions/.
 
 Allocates the next zero-padded NNN in docs/<subfolder>/ and writes a file with
-the standard header block, so numbering stays unique without manual bookkeeping.
+the structured Flow template (for `flows`) or ADR template (for `decisions`).
 
 Usage:
-    python scripts/new_doc.py <subfolder> <kebab-name> [--docs docs] [--title TITLE] [--status Draft]
+    python scripts/new_doc.py <flows|decisions> <kebab-name> [--docs docs] [--title TITLE] [--status Draft]
 
-Example:
-    python scripts/new_doc.py product 004-notification-rules --title "Notification Rules"
+Examples:
+    python scripts/new_doc.py flows create-order --title "Create Order"
+    python scripts/new_doc.py decisions store-orders-in-memory --title "Store orders in memory"
 """
 
 import argparse
@@ -16,10 +17,52 @@ import re
 import sys
 from pathlib import Path
 
-SUBFOLDER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+VALID_SUBFOLDERS = ("flows", "decisions")
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 NUMBERED_RE = re.compile(r"^(\d{3})-")
-VALID_STATUS = ("Draft", "Active")
+VALID_FLOW_STATUS = ("Draft", "Active")
+VALID_ADR_STATUS = ("Proposed", "Accepted", "Deprecated", "Superseded")
+
+FLOW_TEMPLATE = """# {title}
+
+**Document Version**: 0.1.0
+**Status**: {status}
+
+## Overview & Actor
+
+<!-- Who triggers this flow and what goal does it achieve? -->
+
+## Business Rules
+
+<!-- Rules and invariants enforced during this flow. -->
+
+## Flow Steps
+
+<!-- Step-by-step sequence (or Mermaid diagram) from trigger to completion. -->
+
+## Edge Cases & Errors
+
+<!-- Validation failures, conflict states, and recovery behavior. -->
+"""
+
+ADR_TEMPLATE = """# ADR-{number:03d}: {title}
+
+## Status
+{status}
+
+## Context
+<!-- What problem are we solving? What are the constraints and background? -->
+
+## Decision
+<!-- What technology, pattern, or architectural choice is being made? -->
+
+## Alternatives Considered
+- **Option 1**: <!-- Description and why it was rejected -->
+
+## Consequences
+- **Positive**: <!-- Benefits and simplifications -->
+- **Negative / Trade-offs**: <!-- Complexity, migration cost, or limitations -->
+"""
 
 
 def next_number(subfolder_dir: Path) -> int:
@@ -34,15 +77,19 @@ def next_number(subfolder_dir: Path) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("subfolder", help="registered docs subfolder, e.g. product, architecture")
+    parser.add_argument("subfolder", help="numbered collection subfolder: 'flows' or 'decisions'")
     parser.add_argument("name", help="kebab-case document name, without the number or .md")
     parser.add_argument("--docs", default="docs", help="path to the docs directory (default: docs)")
     parser.add_argument("--title", default=None, help="document title (default: derived from the name)")
-    parser.add_argument("--status", default="Draft", choices=VALID_STATUS, help="initial status (default: Draft)")
+    parser.add_argument("--status", default=None, help="initial status (Draft|Active for flows, Proposed|Accepted for decisions)")
     args = parser.parse_args()
 
-    if not SUBFOLDER_RE.match(args.subfolder):
-        print(f"FAIL  subfolder '{args.subfolder}' must be lowercase kebab-case", file=sys.stderr)
+    if args.subfolder not in VALID_SUBFOLDERS:
+        print(
+            f"FAIL  subfolder '{args.subfolder}' must be one of: {', '.join(VALID_SUBFOLDERS)} "
+            f"(singletons like product.md or ubiquitous-language.md live at the docs/ root without numbers)",
+            file=sys.stderr,
+        )
         return 1
 
     name = re.sub(r"^\d{3}-", "", args.name)
@@ -61,13 +108,29 @@ def main() -> int:
         return 1
 
     title = args.title or " ".join(word.capitalize() for word in name.split("-"))
-    content = f"# {title}\n\n**Document Version**: 0.1.0\n**Status**: {args.status}\n\n"
+
+    if args.subfolder == "flows":
+        status = args.status or "Draft"
+        if status not in VALID_FLOW_STATUS:
+            print(f"FAIL  flow status '{status}' must be one of {VALID_FLOW_STATUS}", file=sys.stderr)
+            return 1
+        content = FLOW_TEMPLATE.format(title=title, status=status)
+    else:
+        status = args.status or "Accepted"
+        if status not in VALID_ADR_STATUS:
+            print(f"FAIL  ADR status '{status}' must be one of {VALID_ADR_STATUS}", file=sys.stderr)
+            return 1
+        content = ADR_TEMPLATE.format(number=number, title=title, status=status)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
 
+    keep = subfolder_dir / ".gitkeep"
+    if keep.exists():
+        keep.unlink()
+
     print(f"CREATE  {path}")
-    print(f"\nNext: fill in the document and add it to {docs}/README.md.")
+    print(f"\nNext: fill in the document and link it in {docs}/README.md.")
     return 0
 
 
