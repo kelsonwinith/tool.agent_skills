@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.0
+- Integrated as Stage 2 of the `project-workflow` pipeline with an explicit post-validation approval gate.
+- Extracted pre-implementation grilling and mismatch interview prompts into the dedicated `project-grill` (Stage 1) skill so grilling and documentation sync no longer overlap.
+- Added `agents/openai.yaml` metadata.
+
 ## 1.4.0
 - Glossary terms now bind docs to code: a canonical term is also the name of the concept's code identifiers, and a term whose meaning changes must be renamed in the glossary and every code identifier in the same change (e.g. `Client` → `Buyer` across docs and variables/types/fields/routes).
 - Terminology-mismatch message now lists code identifiers carrying the current term and offers a coordinated rename option.

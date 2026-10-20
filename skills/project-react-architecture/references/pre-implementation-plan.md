@@ -1,8 +1,8 @@
 # Pre-Implementation File Tree Gate
 
-Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*, *"refactor Z..."*), **do not jump straight to creating or editing files**, and **do not output prose explanations or multiple-choice questionnaires**.
+Whenever the user asks to add, build, update, or refactor any feature, component, or page (e.g. *"add X..."*, *"build a Y page..."*, *"refactor Z..."*), **do not jump straight to creating or editing code files** unless the `### Proposed File Tree` has already been confirmed in Stage 3 (`/project-plan`).
 
-Keep the pre-implementation response strictly limited to **the editing tree only**:
+When running this gate (either standalone or during Stage 3 `/project-plan`), keep the response strictly limited to **the editing tree only**:
 - `### Proposed File Tree` (with a brief inline `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE] — what it does` comment per file)
 
 ## Table of Contents

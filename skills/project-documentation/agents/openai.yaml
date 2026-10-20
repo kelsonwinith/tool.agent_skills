@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Documentation"
+  short_description: "Stage 2: Synchronize canonical glossary, numbered docs/ tree, ADRs, and run doc validators"
+policy:
+  allow_implicit_invocation: true

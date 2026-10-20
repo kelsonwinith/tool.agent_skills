@@ -1,11 +1,23 @@
 ---
 name: project-go-architecture
-description: Design, scaffold, implement, and refactor Go backend code using this repository's strict Hexagonal Architecture (Ports and Adapters) template with Fiber v3, GORM, PostgreSQL, JWT auth, and Swaggo. Use this skill whenever creating a new module, adding or modifying a use case, HTTP handler, DTO, GORM model, mapper, PostgreSQL adapter, cross-module port/adapter, domain error, migration, seeder, or bootstrap wiring in a Go hexagonal project—or when bootstrapping a new Go project based on this template.
+description: "Design, scaffold, implement, and refactor Go backend code using strict Hexagonal Architecture (Ports and Adapters) with Fiber v3, GORM, PostgreSQL, JWT auth, and Swaggo — either standalone or during Stage 3 (/project-plan) and Stage 4 (/project-implement) of /project-workflow. Use this skill whenever creating a new module, adding or modifying a use case, HTTP handler, DTO, GORM model, mapper, PostgreSQL adapter, cross-module port/adapter, domain error, migration, seeder, or bootstrap wiring in a Go hexagonal project. Enforces: pre-implementation ### Proposed File Tree confirmation ([NEW], [UPDATE], [REUSE], [PROMOTE], [DELETE]), strict inward dependency flow, 3-segment <scope>_<layer>_<name>.go file naming, 6-section file banners, and explicit 3-block import aliasing."
+license: MIT
+metadata:
+  version: 1.1.0
 ---
 
 # Project Go Hexagonal Architecture
 
 This skill encodes the architecture, structural conventions, code formatting rules, and implementation patterns of this Go Hexagonal Architecture template (`Fiber v3` + `GORM` + `PostgreSQL` + `JWT` + `Swaggo`). Follow these patterns so every module and layer remains predictable, testable, and decoupled.
+
+---
+
+## 0. Pre-Implementation File Tree Gate (Stage 3 `/project-plan` Integration)
+
+Whenever asked to add, modify, or refactor a Go module, use case, adapter, or endpoint, **do not jump straight to creating or editing `.go` files** unless the `### Proposed File Tree` was already confirmed in Stage 3 (`/project-plan`).
+
+1. **Scan existing modules**: Inspect `internal/shared/`, `internal/infrastructure/`, `internal/modules/`, and `internal/bootstrap/`.
+2. **Propose `### Proposed File Tree`**: Output only the annotated `### Proposed File Tree` using `[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, and `[DELETE]` tags with 3-segment `<scope>_<layer>_<name>.go` filenames, and wait for user approval before writing code.
 
 ---
 

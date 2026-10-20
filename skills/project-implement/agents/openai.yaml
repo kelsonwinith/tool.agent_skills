@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Implement"
+  short_description: "Stage 4: Implement the approved file tree and run code + documentation verification"
+policy:
+  allow_implicit_invocation: true

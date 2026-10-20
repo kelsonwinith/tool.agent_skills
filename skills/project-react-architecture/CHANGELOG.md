@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.0
+- Aligned §0 Pre-Implementation File Tree Gate with `project-workflow`, `project-plan` (Stage 3), and `project-implement` (Stage 4) so Stage 1 (`/project-grill`) and Stage 2 (`/project-documentation`) can complete before the file tree gate runs, and Stage 4 can proceed immediately once Stage 3 is approved.
+- Added `agents/openai.yaml` metadata.
+
 ## 1.7.0
 - Modularized detailed topic guides and reference code into `references/` for progressive disclosure, reducing `SKILL.md` to a concise ~135-line architectural entrypoint:
   - `references/pre-implementation-plan.md` — 3-step Scan → Decide → Output `### Proposed File Tree` gate, decision matrix, and file tree template.

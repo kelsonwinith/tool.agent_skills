@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Grill"
+  short_description: "Stage 1: Design-tree interview, glossary check, and requirement conflict detection"
+policy:
+  allow_implicit_invocation: true

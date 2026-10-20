@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Plan"
+  short_description: "Stage 3: Scan codebase layers and output the annotated ### Proposed File Tree"
+policy:
+  allow_implicit_invocation: true

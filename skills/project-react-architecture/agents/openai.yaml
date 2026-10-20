@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project React Architecture"
+  short_description: "Layered React/Next.js SSR architecture with zero inline className"
+policy:
+  allow_implicit_invocation: true

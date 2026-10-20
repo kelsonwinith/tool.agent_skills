@@ -1,21 +1,25 @@
 ---
 name: project-documentation
-description: "Portable, project-agnostic documentation guardian. Manages and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use this whenever you develop, modify, or refactor a feature, or when requirements, business rules, APIs, data models, architecture, or terminology change — even if the user never says 'docs' or 'documentation.' It grills the request's logic before writing (a design-tree interview), reconciles terminology against the canonical context (treating each glossary term as the concept's name in both docs and code, so a renamed term renames its code identifiers too), detects requirement mismatches and confirms before changing them, keeps every document describing the current system (removed features are removed from the docs), ships deterministic validators, and follows the numbered docs subfolder file convention. Works for any language, framework, or repo shape."
+description: "Stage 2 of the project workflow (/project-documentation): portable, project-agnostic documentation guardian. Manages and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use whenever requirements, business rules, APIs, data models, architecture, or terminology change — or as Stage 2 after /project-grill. Treats each glossary term as the concept's canonical name in both docs and code (so renaming a term renames its code identifiers too), keeps every document describing the current system (removed features are pruned from docs), records ADRs for hard-to-reverse trade-offs, ships deterministic validators, and pauses for user approval when run in the workflow."
 license: MIT
 compatibility: "Requires Python 3 (standard library only) to run the bundled helpers in scripts/."
 metadata:
-  version: 1.4.0
+  version: 1.5.0
 ---
 
-# Project Documentation
+# Project Documentation (Stage 2)
 
-A project's docs and its code drift apart quietly. This skill keeps them honest: it manages the `docs/` tree, agrees on what words mean, and makes sure a request's logic is settled before anything gets written.
+A project's docs and its code drift apart quietly. This skill keeps them honest: it manages the numbered `docs/` tree, enforces a single canonical vocabulary across docs and code, and validates every documentation change with deterministic linters.
 
 It contains no project-specific facts — everything it needs is discovered from the project and written into that project's own `docs/`.
 
+> **Pre-Implementation Grilling**: If the request has not been grilled yet (e.g. `/project-documentation` was invoked directly on an ambiguous request without running `/project-grill` first), run **`project-grill`** first so terminology conflicts, requirement mismatches, and open design questions are settled before editing `docs/`.
+
+---
+
 ## Docs describe the current system, not its history
 
-Documentation is a snapshot of what the system *is right now*, never a changelog. If a feature is removed or replaced, delete its documentation and every reference to it — don't leave a "removed" or "deprecated" section behind, and don't keep describing behaviour that no longer exists. When code and docs disagree, the docs are wrong until updated.
+Documentation is a snapshot of what the system *is right now*, never a changelog. If a feature is removed or replaced, delete its documentation and every reference to it — don't leave a "removed" or "deprecated" section behind, and don't keep describing behavior that no longer exists. When code and docs disagree, the docs are wrong until updated.
 
 The one deliberate exception is the ADR log under `decisions/`: it records *why* past choices were made, and is useful precisely because it is historical.
 
@@ -51,7 +55,7 @@ Different people call the same thing different names — "account" vs "customer"
 | Customer | A person or organization that places orders. | Client, buyer, account |
 ```
 
-Only project-specific terms belong here — not general programming concepts. One canonical term per concept; list every synonym in `Avoid`. When a term is resolved, write it down immediately. When someone uses a term that conflicts with the glossary, say so and reconcile it before going further. Multi-context repos keep one glossary per context plus a map (format in [references/formats.md](references/formats.md)).
+Only project-specific terms belong here — not general programming concepts. One canonical term per concept; list every synonym in `Avoid`. When a term is resolved, write it down immediately. Multi-context repos keep one glossary per context plus a map (format in [references/formats.md](references/formats.md)).
 
 ### A glossary term is the same word in docs and code
 
@@ -59,42 +63,21 @@ The canonical term is not just prose vocabulary — it is the name that should a
 
 - The glossary term is the single source of truth for a concept's name. Pick the canonical English term, then use it consistently across docs **and** code.
 - Code identifiers follow the term, adjusted only for the language's casing convention — i.e. the term's own casing is not mutated beyond that. `Buyer` → `buyer`, `BuyerId`, `buyerId`, `useBuyer`, `fetchBuyers`; never `client`, `ClientId`, `customer`.
-- If a concept already has a different name in code, the mismatch is a reconciliation task, not something to leave in place.
+- If a concept already has a different name in code, the mismatch is a reconciliation task that must be carried into Stage 3 (`/project-plan`) and Stage 4 (`/project-implement`).
 
 ### When a term's meaning changes, rename it everywhere at once
 
-A glossary term is a living definition: requirements change, and the word often changes with them. Treat a rename as a change in the canonical context that must propagate in a single, synchronized move — never let a new name land in the glossary while the old name lingers in code, or new code while docs still describe the old concept.
-
-The rule: **changing a term means updating both its glossary entry and every code identifier that used the old name, in the same change.** No half-renames, no alias left behind, no "avoid" synonym still living in the source.
+A glossary term is a living definition: requirements change, and the word often changes with them. Treat a rename as a change in the canonical context that must propagate across both docs and code — never let a new name land in the glossary while the old name lingers in code, or new code while docs still describe the old concept.
 
 Example — the requirement shifts so a `Client` is now called a `Buyer`:
 
 1. Update `docs/context/001-ubiquitous-language.md`: rename the term to `Buyer`, rewrite its meaning, and move `Client` into the `Avoid` column.
-2. Rename the code identifiers that carried `client` → `buyer` (`client` → `buyer`, `clientId` → `buyerId`, `ClientCard` → `BuyerCard`, types, API fields, DB references).
-3. Update every dependent document that mentioned the old term (requirements, business rules, architecture, data models).
-4. Flag the rename to the user as a terminology change, per the reconciliation rules below, before executing it.
-
-Skip the glossary-vs-code link and you get the exact confusion this skill exists to prevent: docs talking about buyers while the codebase still talks about clients. This skill defines *what you should do* — the ordering of the rename and the invariant that both sides stay in sync — not the mechanics of any specific refactoring tool; apply your project's own rename/refactor process to carry it out.
-
-## Before you build
-
-A request is rarely complete, and its gaps are exactly where you'd guess wrong. So before writing docs or code, grill the request to a shared understanding:
-
-- Treat it as a design tree. Ask the questions you can answer *now* — whose prerequisites are already settled — as one round, then wait for the answers.
-- Number each question and give your recommended answer; a concrete proposal is faster to react to than an open question.
-- Look facts up yourself (files, configs, existing behavior). Only decisions go to the user.
-- Stop when nothing is left assumed and the user confirms you're aligned.
-
-Then check the request against what's already documented:
-
-- **Terminology** — resolve the request's words against the glossary. Undefined terms get a proposed definition; conflicts get flagged. If a term's *meaning* changed, treat it as a rename: the glossary entry and every code identifier using the old word change together (§"When a term's meaning changes").
-- **Requirements** — if the request conflicts with a documented requirement, stop and show the mismatch, then wait for confirmation before changing anything.
-
-Message templates are in [references/formats.md](references/formats.md).
+2. Update every dependent document that mentioned the old term (requirements, business rules, architecture, data models).
+3. Ensure every code identifier that carried `client` → `buyer` (`client` → `buyer`, `clientId` → `buyerId`, `ClientCard` → `BuyerCard`, types, API fields, DB references) is scheduled in `/project-plan` and renamed in `/project-implement`.
 
 ## Keeping docs in sync
 
-Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects, and every document should end up describing the system as it now stands. Keep names, status values, and rules identical across all of them — and identical to the codebase's identifiers, since the glossary term is also the code's name for that concept. Preserve unrelated context when you edit.
+Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects, and every document should end up describing the system as it now stands. Keep names, status values, and rules identical across all of them — and identical to the codebase's identifiers. Preserve unrelated context when you edit.
 
 Removals count as changes: when a feature, endpoint, field, or rule disappears, prune it from every document that mentioned it, and remove the whole document if nothing real is left in it.
 
@@ -104,13 +87,19 @@ Record a decision as an ADR only when it's hard to reverse, surprising without c
 
 ## Bootstrapping
 
-In a repo with no docs, run `scripts/init_docs.py` to create the tree, index, and glossary skeleton, then document only what you can verify from the code. Mark unknowns with a `<!-- TODO -->` rather than inventing, and prompt the user for the high-level things you can't infer — personas, business rules, ambiguous terms.
+In a repo with no `docs/`, run `scripts/init_docs.py` to create the tree, index, and glossary skeleton, then document only what you can verify from the code and the agreed design. Mark unknowns with a `<!-- TODO -->` rather than inventing.
 
-## Helpers
+## Helpers & Mandatory Validation
 
-`scripts/` holds optional helpers; run them from the project root.
+`scripts/` holds deterministic helpers; run them from the project root:
 
 - `init_docs.py` / `new_doc.py` — create the tree and allocate the next numbered document.
-- `docs_lint.py` / `glossary_lint.py` / `adr_scan.py` — check the conventions (naming, headers, glossary shape, ADR integrity) and flag drift. Treat a failure as a blocker.
+- `docs_lint.py` / `glossary_lint.py` / `adr_scan.py` — check the conventions (naming, headers, glossary shape, ADR integrity) and flag drift. **Always run these validators after editing `docs/` and fix any failures before completing Stage 2.**
 
-These are conveniences, not gates. The point is the shared understanding above.
+## Stage 2 Gate Output (Pause for Approval)
+
+After updating `docs/` and passing all validator scripts:
+1. Summarize which `docs/` files were created, updated, or deleted, plus any glossary renames that must propagate to code in Stage 3.
+2. When running inside `/project-workflow`, ask:
+   > *"Stage 2 (Documentation) complete and validated. Reply **approve** to proceed to Stage 3 (`/project-plan`), or tell me what to adjust."*
+   **STOP and wait for user approval.**

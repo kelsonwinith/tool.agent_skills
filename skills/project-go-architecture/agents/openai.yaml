@@ -1,0 +1,5 @@
+interface:
+  display_name: "Project Go Architecture"
+  short_description: "Go Hexagonal Architecture (Fiber v3, GORM, PostgreSQL, JWT, Swaggo)"
+policy:
+  allow_implicit_invocation: true
