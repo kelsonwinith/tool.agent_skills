@@ -98,8 +98,24 @@ If a stage is skipped (`enabled: false`), advance directly to the next enabled s
 1. Execute the approved file tree precisely.
 2. Enforce canonical glossary names and stack architecture invariants.
 3. Run project verification (tests, linters, build + doc linters).
-4. Update the website to completed and stop the server:
+4. Update the website to `completed` (the server remains active in a full-loop cycle; do NOT stop the server):
    ```bash
    python3 <path-to-project-workflow>/scripts/workflow_ui.py --update --stage 4 --status completed --title "Implementation Complete" --content "<results>"
-   python3 <path-to-project-workflow>/scripts/workflow_ui.py --stop
    ```
+5. Report completion to the user:
+   > *"Workflow cycle completed! The verified implementation and tests are in place. The dashboard remains open at [http://localhost:4321](http://localhost:4321) where you can review results or click **Start New Task** to run another workflow."*
+
+---
+
+## Full Loop Cycle & Server Lifecycle
+
+- **Persistent Connection**: The server maintains an open connection across task cycles. It does not terminate when a task completes.
+- **Starting Another Task**: The user can click **"New Task"** or **"Start New Task"** in the Web UI anytime. This resets the dashboard to the prompt input while archiving past completed tasks into the session history.
+- **Next Loop Waiting**: If orchestrating continuous workflows, wait for the next user task with:
+  ```bash
+  python3 <path-to-project-workflow>/scripts/workflow_ui.py --wait
+  ```
+- **Stopping Server**: To explicitly terminate the background server and clean up `.workflow/`:
+  ```bash
+  python3 <path-to-project-workflow>/scripts/workflow_ui.py --stop
+  ```

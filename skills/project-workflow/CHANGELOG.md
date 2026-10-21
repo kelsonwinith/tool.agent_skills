@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.0
+- Redesigned the Web UI with modern **shadcn default style**:
+  - Implemented neutral zinc CSS variable tokens (`--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--border`, `--input`, `--ring`, `--radius`).
+  - Added a 3-way Theme Switcher (`Light`, `Dark`, `System`) with SVG icons, localStorage persistence, and OS dark-mode preference listener.
+  - Added Geist / Inter clean typography, refined horizontal stepper, and syntax badges (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`).
+  - Added "Copy Output" button for stage artifacts.
+- Enabled **Full Loop Cycle Server Lifecycle**:
+  - The server connection stays open continuously across tasks rather than terminating after Stage 4.
+  - Added `reset_workflow` endpoint and "New Task" / "Start New Task" actions in the Web UI.
+  - Automatically archives completed tasks into `state["history"]` with timestamps and goals.
+  - Displays a "Recent Tasks in this Session" drawer allowing quick prompt reuse.
+
 ## 1.4.0
 - Added direct website launch and web-first prompting:
   - Invoking `/project-workflow` immediately launches the local website at `http://localhost:4321`.
