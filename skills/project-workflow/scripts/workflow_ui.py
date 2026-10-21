@@ -27,10 +27,12 @@ import pathlib
 import signal
 import socket
 import socketserver
+import subprocess
 import sys
 import threading
 import time
 import urllib.parse
+import urllib.request
 import webbrowser
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -816,6 +818,11 @@ class WorkflowHTTPHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:
         return
 
+    def do_HEAD(self) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/" or parsed.path == "/index.html":
@@ -909,7 +916,7 @@ def start_server(
     class ThreadedServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
         allow_reuse_address = True
 
-    server = ThreadedServer(("127.0.0.1", port), WorkflowHTTPHandler)
+    server = ThreadedServer(("0.0.0.0", port), WorkflowHTTPHandler)
     WorkflowHTTPHandler.server_instance = server
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -933,6 +940,11 @@ def stop_server(project_root: pathlib.Path) -> None:
         try:
             pid = int(pid_file.read_text(encoding="utf-8").strip())
             os.kill(pid, signal.SIGTERM)
+            time.sleep(0.2)
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except OSError:
+                pass
         except Exception:
             pass
         pid_file.unlink(missing_ok=True)
@@ -941,8 +953,54 @@ def stop_server(project_root: pathlib.Path) -> None:
         state_file.unlink(missing_ok=True)
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    """Run server in foreground (used by detached background worker)."""
+    root = pathlib.Path(args.root).resolve()
+    port = args.port
+    WorkflowHTTPHandler.project_root = root
+
+    class ThreadedServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+        allow_reuse_address = True
+
+    try:
+        server = ThreadedServer(("0.0.0.0", port), WorkflowHTTPHandler)
+    except OSError:
+        server = ThreadedServer(("127.0.0.1", port), WorkflowHTTPHandler)
+
+    WorkflowHTTPHandler.server_instance = server
+    try:
+        server.serve_forever()
+    except (KeyboardInterrupt, SystemExit):
+        server.shutdown()
+    return 0
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     root = pathlib.Path(args.root).resolve()
+    state_file = get_state_path(root)
+    pid_file = root / WORKFLOW_DIR_NAME / "server.pid"
+    log_file = root / WORKFLOW_DIR_NAME / "server.log"
+    root_wf = root / WORKFLOW_DIR_NAME
+    root_wf.mkdir(parents=True, exist_ok=True)
+
+    # Check if already running
+    if pid_file.is_file():
+        try:
+            pid = int(pid_file.read_text(encoding="utf-8").strip())
+            os.kill(pid, 0)
+            state = read_state(root)
+            port = state.get("port", DEFAULT_PORT)
+            url = f"http://127.0.0.1:{port}"
+            if not args.no_browser:
+                try:
+                    webbrowser.open(url)
+                except Exception:
+                    pass
+            print(json.dumps({"status": "already_running", "url": url, "port": port, "pid": pid}))
+            return 0
+        except OSError:
+            pid_file.unlink(missing_ok=True)
+
     port = find_free_port(args.port)
     detected = detect_project_stack(root)
     req = args.request or ""
@@ -960,20 +1018,47 @@ def cmd_start(args: argparse.Namespace) -> int:
     }
     write_state(root, initial_state)
 
-    pid_file = root / WORKFLOW_DIR_NAME / "server.pid"
-    pid_file.write_text(str(os.getpid()), encoding="utf-8")
+    # Spawn background daemon process
+    cmd = [
+        sys.executable,
+        str(pathlib.Path(__file__).resolve()),
+        "--serve",
+        "--root", str(root),
+        "--port", str(port),
+    ]
 
-    server, actual_port = start_server(root, port=port, open_browser=not args.no_browser)
-    url = f"http://127.0.0.1:{actual_port}"
-    print(json.dumps({"status": "running", "url": url, "port": actual_port, "state_file": str(get_state_path(root))}))
+    log_fp = open(log_file, "a", encoding="utf-8")
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log_fp,
+        stderr=log_fp,
+        start_new_session=True,
+    )
+    pid_file.write_text(str(proc.pid), encoding="utf-8")
 
-    if args.daemon:
+    # Poll until server responds with 200 OK
+    url = f"http://127.0.0.1:{port}"
+    server_ready = False
+    for _ in range(40):
         try:
-            while True:
-                time.sleep(1)
-        except (KeyboardInterrupt, SystemExit):
-            server.shutdown()
-            stop_server(root)
+            with urllib.request.urlopen(f"{url}/api/state", timeout=0.2) as resp:
+                if resp.status == 200:
+                    server_ready = True
+                    break
+        except Exception:
+            time.sleep(0.1)
+
+    if not server_ready:
+        print(json.dumps({"status": "failed_to_start", "port": port, "log": str(log_file)}))
+        return 1
+
+    if not args.no_browser:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    print(json.dumps({"status": "running", "url": url, "port": port, "pid": proc.pid, "state_file": str(state_file)}))
     return 0
 
 
@@ -1044,6 +1129,7 @@ def main(argv: Optional[list] = None) -> int:
 
     sub = parser.add_mutually_exclusive_group(required=True)
     sub.add_argument("--start", action="store_true", help="Start the workflow Web UI server")
+    sub.add_argument("--serve", action="store_true", help="Internal daemon server process")
     sub.add_argument("--update", action="store_true", help="Update the stage content and status")
     sub.add_argument("--next-stage", dest="from_stage", type=int, help="Get next enabled stage skipping disabled stages")
     sub.add_argument("--wait", action="store_true", help="Wait for user action from the Web UI")
@@ -1052,7 +1138,6 @@ def main(argv: Optional[list] = None) -> int:
     # Start options
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Server port (default: {DEFAULT_PORT})")
     parser.add_argument("--no-browser", action="store_true", help="Do not open browser automatically")
-    parser.add_argument("--daemon", action="store_true", help="Keep running in foreground")
 
     # Update options
     parser.add_argument("--stage", type=int, choices=[1, 2, 3, 4], help="Workflow stage number (1-4)")
@@ -1067,6 +1152,8 @@ def main(argv: Optional[list] = None) -> int:
 
     args = parser.parse_args(argv)
 
+    if args.serve:
+        return cmd_serve(args)
     if args.start:
         return cmd_start(args)
     if args.update:
