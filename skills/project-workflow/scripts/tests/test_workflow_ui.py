@@ -22,7 +22,7 @@ class WorkflowUITests(unittest.TestCase):
             root = pathlib.Path(tmp)
             state = wui.read_state(root)
             self.assertEqual(state["current_stage"], 1)
-            self.assertEqual(state["status"], "in_progress")
+            self.assertEqual(state["status"], "awaiting_prompt")
             self.assertEqual(len(state["stages"]), 4)
 
             # Check locked vs skippable default flags
@@ -56,10 +56,10 @@ class WorkflowUITests(unittest.TestCase):
         stages[2]["enabled"] = False
         self.assertEqual(wui.get_next_enabled_stage(state, 1), 4)
 
-    def test_http_server_endpoints_and_config(self) -> None:
+    def test_http_server_endpoints_and_web_prompting(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            server, port = wui.start_server(root, port=54322, open_browser=False)
+            server, port = wui.start_server(root, port=54323, open_browser=False)
             try:
                 base_url = f"http://127.0.0.1:{port}"
 
@@ -68,13 +68,28 @@ class WorkflowUITests(unittest.TestCase):
                     self.assertEqual(res.status, 200)
                     html = res.read().decode("utf-8")
                     self.assertIn("Project Workflow", html)
-                    self.assertIn("config-section", html)
+                    self.assertIn("heroCard", html)
 
-                # Test GET /api/state
+                # Test GET /api/state: starts in awaiting_prompt
                 with urllib.request.urlopen(f"{base_url}/api/state") as res:
                     self.assertEqual(res.status, 200)
                     data = json.loads(res.read().decode("utf-8"))
-                    self.assertEqual(data.get("current_stage"), 1)
+                    self.assertEqual(data.get("status"), "awaiting_prompt")
+
+                # Test POST /api/action: start_workflow from web UI
+                req_start = urllib.request.Request(
+                    f"{base_url}/api/action",
+                    data=json.dumps({"action": "start_workflow", "text": "Build user auth"}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req_start) as res:
+                    self.assertEqual(res.status, 200)
+                    data = json.loads(res.read().decode("utf-8"))
+                    self.assertEqual(data.get("status"), "in_progress")
+                    self.assertEqual(data.get("request"), "Build user auth")
+                    self.assertEqual(data["pending_action"]["action"], "start_workflow")
+                    self.assertEqual(data["pending_action"]["text"], "Build user auth")
 
                 # Test POST /api/config: Toggle Stage 2 (Docs)
                 req_cfg = urllib.request.Request(
@@ -89,19 +104,7 @@ class WorkflowUITests(unittest.TestCase):
                     stage_2 = [s for s in data["stages"] if s["id"] == 2][0]
                     self.assertFalse(stage_2["enabled"])
 
-                # Test POST /api/config: Select stack 'go'
-                req_stack = urllib.request.Request(
-                    f"{base_url}/api/config",
-                    data=json.dumps({"selected_stack": "go"}).encode("utf-8"),
-                    headers={"Content-Type": "application/json"},
-                    method="POST",
-                )
-                with urllib.request.urlopen(req_stack) as res:
-                    self.assertEqual(res.status, 200)
-                    data = json.loads(res.read().decode("utf-8"))
-                    self.assertEqual(data["selected_stack"], "go")
-
-                # Test POST /api/action
+                # Test POST /api/action: approve
                 req_act = urllib.request.Request(
                     f"{base_url}/api/action",
                     data=json.dumps({"action": "approve", "text": "Looks good!"}).encode("utf-8"),

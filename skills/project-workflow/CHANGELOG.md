@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0
+- Added direct website launch and web-first prompting:
+  - Invoking `/project-workflow` immediately launches the local website at `http://localhost:4321`.
+  - Added Prompt Hero Card on the website so users enter their initial request prompt directly in the browser.
+  - Added `status: awaiting_prompt` and `action: start_workflow` action handling.
+  - End-to-end interactive loop (prompting, answers, stage reviews, and approvals) now occurs directly in the browser dashboard.
+
 ## 1.3.0
 - Added Pipeline Stages & Skills configuration section to the Web UI dashboard:
   - Enforced locked stages (Stage 1 Grill and Stage 4 Implement are locked 🔒 for flow integrity).

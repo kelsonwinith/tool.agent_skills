@@ -1,141 +1,104 @@
 ---
 name: project-workflow
-description: "End-to-end gated project workflow orchestrator (/project-workflow) with an interactive local Web UI dashboard, stage toggles (forced vs. skippable stages), and stack switching. Auto-installs missing companion workflow and stack skills on first run, launches a local browser dashboard (or operates in dual-mode with terminal chat), and guides any feature addition, modification, removal, or refactor through the configured stages: Stage 1 (/project-grill: 🔒 forced), Stage 2 (/project-documentation: toggleable), Stage 3 (/project-plan: toggleable), and Stage 4 (/project-implement: 🔒 forced). Use whenever the user invokes /project-workflow or asks to run the full project workflow loop."
+description: "End-to-end gated project workflow orchestrator (/project-workflow). Calling /project-workflow immediately launches a local browser website where you enter your prompt directly, configure stages and architecture stacks, review artifacts, and approve each step. Auto-installs missing companion workflow and stack skills on first run, and guides any feature addition, modification, removal, or refactor through the configured stages: Stage 1 (/project-grill: 🔒 forced), Stage 2 (/project-documentation: toggleable), Stage 3 (/project-plan: toggleable), and Stage 4 (/project-implement: 🔒 forced). Use whenever the user invokes /project-workflow."
 license: MIT
 compatibility: "Requires Python 3 (standard library only) and Node/npx (for auto-installing missing companion skills via the skills CLI)."
 metadata:
-  version: 1.3.0
+  version: 1.4.0
 ---
 
 # Project Workflow
 
-`project-workflow` is the master entrypoint for building, modifying, refactoring, or removing features in any repository. Installing this single skill automatically bootstraps the rest of the workflow suite, launches an interactive local Web UI dashboard, and runs every request through a predictable, approval-gated pipeline.
+`project-workflow` is the master entrypoint for building, modifying, refactoring, or removing features in any repository. Calling `/project-workflow` **immediately launches a local browser dashboard** where the prompt happens directly on the website, letting you enter requests, configure pipeline stages and architecture stacks, review stage artifacts, and click through approval gates.
 
 ```text
-/project-workflow "<request>"
+/project-workflow
    │
-   ├─► Stage 0: Bootstrap & Web UI (auto-detect stack, launch dashboard at http://localhost:4321)
+   ├─► Step 0: Directly launches website at http://localhost:4321
+   │          (User enters prompt & configures stages directly on the website)
    │
-   ├─► Stage 1: /project-grill     (🔒 FORCED: design-tree interview + conflict check)  ──► [PAUSE FOR APPROVAL]
-   ├─► Stage 2: /project-documentation (TOGGLEABLE: sync docs/, flows, ADRs + linters)  ──► [PAUSE FOR APPROVAL]
-   ├─► Stage 3: /project-plan      (TOGGLEABLE: scan layers + ONLY ### Proposed File Tree)──► [PAUSE FOR APPROVAL]
-   └─► Stage 4: /project-implement (🔒 FORCED: code implementation & verification)      ──► [FINAL SIGN-OFF]
+   ├─► Stage 1: /project-grill     (🔒 FORCED: design-tree interview + conflict check)  ──► [WEB APPROVAL]
+   ├─► Stage 2: /project-documentation (TOGGLEABLE: sync docs/, flows, ADRs + linters)  ──► [WEB APPROVAL]
+   ├─► Stage 3: /project-plan      (TOGGLEABLE: scan layers + ONLY ### Proposed File Tree)──► [WEB APPROVAL]
+   └─► Stage 4: /project-implement (🔒 FORCED: code implementation & verification)      ──► [COMPLETED]
 ```
 
 ---
 
-## Stage Toggling & Skill Inspection
+## Direct Web Launch & Web-First Prompting
 
-Inside the Web UI dashboard (and `.workflow/state.json`), users can inspect and configure active stages and attached skills:
-
-1. **Forced vs. Skippable Stages**:
-   - **Stage 1 (Grill) & Stage 4 (Implement)**: **`🔒 Locked (Forced)`**. These guarantee that requirements are settled before work begins and code is verified before completion.
-   - **Stage 2 (Docs) & Stage 3 (Plan)**: **`Toggleable (Skippable)`**. Users can toggle Stage 2 off if building a quick prototype without docs, or toggle Stage 3 off to move directly from Grill to Implementation.
-2. **Stack Architecture Selector**:
-   - Allows switching between `React / Next.js` (`project-react-architecture`), `Go Hexagonal` (`project-go-architecture`), and `Generic Clean` on the fly.
-3. **Automatic Stage Skipping**:
-   - When advancing from a stage, check the next enabled stage:
-     ```bash
-     python3 <path-to-project-workflow>/scripts/workflow_ui.py --next-stage <current_stage>
-     ```
-   - If a stage is disabled (`enabled: false`), the workflow skips it and advances directly to the next enabled stage.
-
----
-
-## Dual-Mode: Interactive Web UI & Terminal Chat
-
-When `/project-workflow` runs, it starts a lightweight local server and opens your browser:
+When the user calls `/project-workflow`:
 
 ```bash
-python3 <path-to-project-workflow>/scripts/workflow_ui.py --start --request "<request>"
-```
-
-### What You See in the Browser:
-- **Visual Stepper**: Track progress across Stage 1 (Grill) → Stage 2 (Docs) → Stage 3 (Plan) → Stage 4 (Implement), with skipped stages struck through.
-- **Pipeline & Skills Config Grid**: View attached skills for each stage, toggle optional stages on/off, and select the active architecture stack.
-- **Artifact & Diff Viewer**: Formatted view of grilling Q&A, documentation changes, colored file tree badges (`[NEW]`, `[UPDATE]`, `[REUSE]`, `[PROMOTE]`, `[DELETE]`), and verification results.
-- **Interactive Action Bar**: Type customized instructions or answers in the text box and click **`Approve & Next Step`** (shortcut `Cmd/Ctrl + Enter`) or **`Request Revisions`**.
-
-Both interfaces stay 100% in sync: you can reply or approve either directly inside the browser or in your chat conversation!
-
----
-
-## Core Rule: Pause After Every Enabled Stage
-
-Never chain two stages in a single turn without the user's explicit confirmation. At the end of every active stage, present that stage's artifact, update the Web UI status to `waiting_approval`, and **wait for the user to approve** (via browser button or chat) before advancing to the next enabled stage.
-
----
-
-## Stage 0 — Auto-Bootstrap & UI Startup
-
-```bash
-# 1. Bootstrap companion skills
+# 1. Bootstrap companion skills if missing
 python3 <path-to-project-workflow>/scripts/bootstrap_workflow.py
 
-# 2. Start local dashboard (opens browser automatically)
-python3 <path-to-project-workflow>/scripts/workflow_ui.py --start --request "<request>"
+# 2. Launch the local website directly (opens browser automatically)
+python3 <path-to-project-workflow>/scripts/workflow_ui.py --start
 ```
 
+### Initial Prompt on the Website
+1. If the user invoked `/project-workflow` without a prompt, the website displays the **Prompt Hero Card**:
+   - Headline: *"What would you like to build or modify?"*
+   - Textarea to enter feature requests, bug fixes, or refactors.
+   - Stage toggles (enable/disable Stage 2 Docs or Stage 3 Plan) and Stack Selector (`React`, `Go`, `Generic Clean`).
+   - Button: **`🚀 Start Workflow`** (or `Cmd/Ctrl + Enter`).
+2. Tell the user in chat:
+   > *"I've launched the Project Workflow website at [http://localhost:4321](http://localhost:4321). Please enter what you want to build or modify directly on the website."*
+3. Wait for the user to submit their prompt from the website:
+   ```bash
+   python3 <path-to-project-workflow>/scripts/workflow_ui.py --wait
+   ```
+   This returns JSON with the submitted prompt: `{"action": "start_workflow", "text": "<user-prompt>"}`.
+4. If the user passed a prompt directly in chat (e.g. `/project-workflow "add cancellation"`), start the server with `--request "<request>"` and proceed directly to Stage 1.
+
 ---
 
-## Stage 1 — Grill the Request (`/project-grill` — 🔒 FORCED)
+## Interactive Stages via the Website
 
-Load and follow **`project-grill`**:
+After receiving the prompt, execute each stage and post the output to the website, waiting for the user to approve on the website:
 
-1. **Silent Discovery**: Read existing code and `docs/` yourself.
-2. **Terminology & Requirement Check**: Check `docs/ubiquitous-language.md` and `docs/product.md` / `docs/flows/`.
-3. **Design-Tree Interview**: Ask numbered questions with `(Recommended)` default proposals.
-4. **Stage 1 Gate Output**: Present the **Agreed Design Summary**, update the Web UI, and ask:
+### Stage 1 — Grill the Request (`/project-grill` — 🔒 FORCED)
+1. Read existing code and `docs/` silently; check terminology against `docs/ubiquitous-language.md` and requirements against `docs/product.md` / `docs/flows/`.
+2. Conduct the design-tree interview and formulate the **Agreed Design Summary**.
+3. Update the website and wait for the user to answer or click **Approve & Next Step**:
    ```bash
    python3 <path-to-project-workflow>/scripts/workflow_ui.py --update --stage 1 --status waiting_approval --title "Agreed Design Summary" --content "<summary-text>"
+   python3 <path-to-project-workflow>/scripts/workflow_ui.py --wait
    ```
-   > *"Stage 1 (Grill) complete. Click **Approve & Next Step** in the browser dashboard or reply **approve** in chat to proceed."*
 
-**STOP and wait for user approval.**
+### Check Next Enabled Stage
+Before entering Stage 2 or 3, check whether the user toggled the stage on or off:
+```bash
+python3 <path-to-project-workflow>/scripts/workflow_ui.py --next-stage <current_stage>
+```
+If a stage is skipped (`enabled: false`), advance directly to the next enabled stage.
 
----
-
-## Stage 2 — Synchronize Documentation (`/project-documentation` — Toggleable)
-
-*Skip this stage if toggled off in the Web UI.*
-
-If enabled, load and follow **`project-documentation`**:
+### Stage 2 — Synchronize Documentation (`/project-documentation` — Toggleable)
+*(Skip if disabled in Web UI)*
 1. Update `docs/ubiquitous-language.md`, `docs/product.md`, `docs/architecture.md`, `docs/flows/<NNN>-<name>.md`, or `docs/decisions/<NNN>-<name>.md`.
 2. Run `docs_lint.py`, `glossary_lint.py`, and `adr_scan.py`.
-3. Update the Web UI with the docs summary and ask:
+3. Update the website and wait for approval:
    ```bash
    python3 <path-to-project-workflow>/scripts/workflow_ui.py --update --stage 2 --status waiting_approval --title "Documentation Validated" --content "<docs-summary>"
+   python3 <path-to-project-workflow>/scripts/workflow_ui.py --wait
    ```
-   > *"Stage 2 (Documentation) complete and validated. Click **Approve & Next Step** in the browser or reply **approve** in chat to proceed."*
 
-**STOP and wait for user approval.**
-
----
-
-## Stage 3 — Architecture & File Tree Plan (`/project-plan` — Toggleable)
-
-*Skip this stage if toggled off in the Web UI.*
-
-If enabled, load **`project-plan`** and the active stack architecture skill (`project-react-architecture`, `project-go-architecture`, or clean architecture):
-1. Scan existing layers and include any glossary-driven code renames.
-2. Output **ONLY** `### Proposed File Tree` with inline `# [TAG] — what it does` comments.
-3. Update the Web UI and ask:
+### Stage 3 — Architecture & File Tree Plan (`/project-plan` — Toggleable)
+*(Skip if disabled in Web UI)*
+1. Scan layers according to the active stack skill (`selected_stack` from state: `project-react-architecture` or `project-go-architecture`).
+2. Output **ONLY** `### Proposed File Tree` with `# [NEW] | [UPDATE] | [REUSE] | [PROMOTE] | [DELETE]` tags.
+3. Update the website and wait for approval:
    ```bash
    python3 <path-to-project-workflow>/scripts/workflow_ui.py --update --stage 3 --status waiting_approval --title "Proposed File Tree" --content "<file-tree>"
+   python3 <path-to-project-workflow>/scripts/workflow_ui.py --wait
    ```
-   > *"Stage 3 (File Tree Plan) ready. Click **Approve & Next Step** in the browser or reply **approve** in chat to proceed to Stage 4 (`/project-implement`)."*
 
-**STOP and wait for user approval. Do not create or edit source code files during Stage 3.**
-
----
-
-## Stage 4 — Implement & Verify (`/project-implement` — 🔒 FORCED)
-
-Load and follow **`project-implement`** and the active stack skill:
+### Stage 4 — Implement & Verify (`/project-implement` — 🔒 FORCED)
 1. Execute the approved file tree precisely.
 2. Enforce canonical glossary names and stack architecture invariants.
 3. Run project verification (tests, linters, build + doc linters).
-4. Update the Web UI to completed, stop the server, and present the final summary:
+4. Update the website to completed and stop the server:
    ```bash
    python3 <path-to-project-workflow>/scripts/workflow_ui.py --update --stage 4 --status completed --title "Implementation Complete" --content "<results>"
    python3 <path-to-project-workflow>/scripts/workflow_ui.py --stop

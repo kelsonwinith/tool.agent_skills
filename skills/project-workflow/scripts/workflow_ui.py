@@ -5,8 +5,9 @@ Starts a zero-dependency local HTTP server serving a single-page stepper
 dashboard. Persists synchronized workflow state to .workflow/state.json,
 shows attached skills per stage, allows toggling optional stages (Docs, Plan)
 while enforcing locked stages (Grill, Implement), allows switching stack
-architecture skills, and allows users to review stage artifacts, type
-instructions, and click 'Approve & Next Step'.
+architecture skills, and allows users to enter initial prompts, review stage
+artifacts, type instructions, and click 'Approve & Next Step' directly on
+the website.
 
 Usage (CLI):
     python scripts/workflow_ui.py --start [--port 4321] [--request "Add cancellation"]
@@ -329,9 +330,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     font-weight: 600;
     align-self: flex-start;
   }
+  .status-awaiting_prompt { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.4); }
   .status-waiting_approval { background: rgba(210, 153, 34, 0.15); color: var(--amber); border: 1px solid rgba(210, 153, 34, 0.4); }
   .status-in_progress { background: var(--accent-glow); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.4); }
   .status-completed { background: rgba(46, 160, 67, 0.15); color: var(--green-bright); border: 1px solid rgba(46, 160, 67, 0.4); }
+
+  /* Initial Prompt Hero Card */
+  .hero-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .hero-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-bright);
+  }
+  .hero-subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+  }
+  .hero-textarea {
+    background: #090d13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-bright);
+    padding: 14px;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 120px;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  .hero-textarea:focus { border-color: var(--accent); }
+
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -448,9 +487,9 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   </div>
 </header>
 
-<div class="request-banner">
+<div class="request-banner" id="requestBanner">
   <span>Goal:</span>
-  <strong id="requestText">Loading request...</strong>
+  <strong id="requestText">Awaiting your prompt below...</strong>
 </div>
 
 <div class="stepper" id="stepper"></div>
@@ -464,21 +503,37 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </div>
 
 <main>
-  <div id="statusPill" class="status-pill status-in_progress">Connecting...</div>
-
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title" id="stageTitle">Stage Content</div>
-      <div class="hint" id="timestamp"></div>
+  <!-- Hero section for entering prompt on website -->
+  <div id="heroCard" class="hero-card" style="display: none;">
+    <div class="hero-title">What would you like to build or modify?</div>
+    <div class="hero-subtitle">
+      Type your request directly below to launch the workflow. You can also configure the pipeline stages and architecture stack above.
     </div>
-    <div class="artifact-content" id="artifactBody">Waiting for agent stage output...</div>
+    <textarea id="heroPromptInput" class="hero-textarea" placeholder="E.g., Add order cancellation feature with refund policy and status badges..."></textarea>
+    <div class="button-group">
+      <span class="hint">Shortcut: Cmd/Ctrl + Enter</span>
+      <button class="btn-approve" onclick="submitInitialPrompt()">&#128640; Start Workflow</button>
+    </div>
+  </div>
 
-    <div class="action-panel">
-      <textarea id="feedbackInput" placeholder="Optional: Type instructions, answers, or adjustments for this stage (Cmd/Ctrl + Enter to approve)..."></textarea>
-      <div class="button-group">
-        <span class="hint">Shortcut: Cmd/Ctrl + Enter</span>
-        <button id="btnRevise" class="btn-revise" onclick="submitAction('revise')">Request Revisions</button>
-        <button id="btnApprove" class="btn-approve" onclick="submitAction('approve')">&#10003; Approve &amp; Next Step</button>
+  <!-- Stage execution section -->
+  <div id="stageCardContainer" style="display: none; flex-direction: column; gap: 16px;">
+    <div id="statusPill" class="status-pill status-in_progress">Connecting...</div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title" id="stageTitle">Stage Content</div>
+        <div class="hint" id="timestamp"></div>
+      </div>
+      <div class="artifact-content" id="artifactBody">Waiting for agent stage output...</div>
+
+      <div class="action-panel">
+        <textarea id="feedbackInput" placeholder="Optional: Type instructions, answers, or adjustments for this stage (Cmd/Ctrl + Enter to approve)..."></textarea>
+        <div class="button-group">
+          <span class="hint">Shortcut: Cmd/Ctrl + Enter</span>
+          <button id="btnRevise" class="btn-revise" onclick="submitAction('revise')">Request Revisions</button>
+          <button id="btnApprove" class="btn-approve" onclick="submitAction('approve')">&#10003; Approve &amp; Next Step</button>
+        </div>
       </div>
     </div>
   </div>
@@ -493,12 +548,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       let cls = "step";
       if (!s.enabled) {
         cls += " skipped";
+      } else if (status === "awaiting_prompt") {
+        if (s.id === 1) cls += " active";
       } else if (s.id < currentStage || (s.id === currentStage && status === "completed")) {
         cls += " completed";
       } else if (s.id === currentStage) {
         cls += " active";
       }
-      const numContent = !s.enabled ? "&#8212;" : (s.id < currentStage || (s.id === currentStage && status === "completed") ? "&#10003;" : s.id);
+      const numContent = !s.enabled ? "&#8212;" : (status !== "awaiting_prompt" && (s.id < currentStage || (s.id === currentStage && status === "completed")) ? "&#10003;" : s.id);
       return `
         <div class="${cls}">
           <div class="step-num">${numContent}</div>
@@ -539,7 +596,6 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       `;
     }).join("");
 
-    // Update stack buttons
     ["react", "go", "none"].forEach(st => {
       const btn = document.getElementById("stack-" + st);
       if (btn) btn.className = st === selectedStack ? "stack-btn selected" : "stack-btn";
@@ -553,9 +609,24 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 
   function updateUI(state) {
     currentState = state;
-    document.getElementById("requestText").textContent = state.request || "Running project-workflow";
     renderStepper(state.stages, state.current_stage || 1, state.status || "in_progress");
     renderConfigGrid(state.stages, state.selected_stack || "none");
+
+    const heroCard = document.getElementById("heroCard");
+    const stageContainer = document.getElementById("stageCardContainer");
+
+    if (state.status === "awaiting_prompt") {
+      heroCard.style.display = "flex";
+      stageContainer.style.display = "none";
+      document.getElementById("requestText").textContent = "Enter your prompt below to start";
+      setTimeout(() => document.getElementById("heroPromptInput").focus(), 100);
+      return;
+    }
+
+    heroCard.style.display = "none";
+    stageContainer.style.display = "flex";
+
+    document.getElementById("requestText").textContent = state.request || "Running project-workflow";
 
     const pill = document.getElementById("statusPill");
     const label = (state.status || "in_progress").replace("_", " ").toUpperCase();
@@ -582,6 +653,30 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       }
     } catch (e) {
       console.error("Poll error", e);
+    }
+  }
+
+  async function submitInitialPrompt() {
+    const input = document.getElementById("heroPromptInput");
+    const text = input.value.trim();
+    if (!text) {
+      alert("Please enter what you want to build or modify.");
+      input.focus();
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "start_workflow", text: text })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updateUI(data);
+      }
+    } catch (e) {
+      alert("Failed to start workflow: " + e.message);
     }
   }
 
@@ -644,6 +739,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     }
   }
 
+  document.getElementById("heroPromptInput").addEventListener("keydown", function(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      submitInitialPrompt();
+    }
+  });
+
   document.getElementById("feedbackInput").addEventListener("keydown", function(e) {
     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       submitAction("approve");
@@ -668,7 +769,7 @@ def read_state(project_root: pathlib.Path) -> Dict[str, Any]:
         detected = detect_project_stack(project_root)
         return {
             "current_stage": 1,
-            "status": "in_progress",
+            "status": "awaiting_prompt",
             "request": "",
             "stage_title": "Stage 1 — Grill",
             "content": "",
@@ -739,12 +840,28 @@ class WorkflowHTTPHandler(http.server.BaseHTTPRequestHandler):
         state = read_state(self.project_root)
 
         if parsed.path == "/api/action":
-            state["pending_action"] = {
-                "action": payload.get("action", "approve"),
-                "text": payload.get("text", "").strip(),
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            }
-            state["status"] = "in_progress"
+            action_type = payload.get("action", "approve")
+            text = payload.get("text", "").strip()
+
+            if action_type == "start_workflow":
+                state["request"] = text
+                state["status"] = "in_progress"
+                state["current_stage"] = 1
+                state["stage_title"] = "Stage 1 — Grill"
+                state["content"] = f"Workflow started for: '{text}'. Inspecting repository and checking terminology..."
+                state["pending_action"] = {
+                    "action": "start_workflow",
+                    "text": text,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+            else:
+                state["pending_action"] = {
+                    "action": action_type,
+                    "text": text,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+                state["status"] = "in_progress"
+
             write_state(self.project_root, state)
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -828,12 +945,14 @@ def cmd_start(args: argparse.Namespace) -> int:
     root = pathlib.Path(args.root).resolve()
     port = find_free_port(args.port)
     detected = detect_project_stack(root)
+    req = args.request or ""
+    status = "in_progress" if req else "awaiting_prompt"
     initial_state = {
         "current_stage": 1,
-        "status": "in_progress",
-        "request": args.request or "",
+        "status": status,
+        "request": req,
         "stage_title": "Stage 1 — Grill",
-        "content": "Starting Stage 1 (/project-grill)... Inspecting repository and checking terminology.",
+        "content": "Starting Stage 1 (/project-grill)... Inspecting repository and checking terminology." if req else "",
         "selected_stack": detected,
         "stages": default_stages(detected),
         "pending_action": None,
@@ -937,7 +1056,7 @@ def main(argv: Optional[list] = None) -> int:
 
     # Update options
     parser.add_argument("--stage", type=int, choices=[1, 2, 3, 4], help="Workflow stage number (1-4)")
-    parser.add_argument("--status", choices=["in_progress", "waiting_approval", "completed"], help="Stage status")
+    parser.add_argument("--status", choices=["awaiting_prompt", "in_progress", "waiting_approval", "completed"], help="Stage status")
     parser.add_argument("--title", help="Stage card title")
     parser.add_argument("--request", help="Initial user request prompt")
     parser.add_argument("--content", help="Stage artifact text or diff")
