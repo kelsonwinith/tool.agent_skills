@@ -30,7 +30,7 @@ VERSION_RE = re.compile(r"^\*\*Document Version\*\*:\s*\S+", re.MULTILINE)
 STATUS_RE = re.compile(r"^\*\*Status\*\*:\s*(Draft|Active)\b", re.MULTILINE)
 MERMAID_RE = re.compile(r"```mermaid\s+(flowchart|graph|sequenceDiagram|stateDiagram)", re.MULTILINE)
 
-ALLOWED_ROOT_FILES = {"readme.md", "context.md", "architecture.md"}
+ALLOWED_ROOT_FILES = {"readme.md", "context.md", "architecture.md", "summary.md"}
 HEADER_EXEMPT_SUBFOLDERS = {"context", "decisions"}
 
 

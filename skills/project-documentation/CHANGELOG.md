@@ -2,7 +2,7 @@
 
 ## 2.0.0
 - **Requirement-Polishing Focus**: Refocused the skill from low-level coding mechanics to requirement polishing and mutual understanding. The skill reconciles user prompts with the existing codebase and docs, settles edge cases, and secures alignment before any coding occurs.
-- **Plain-Language Confirmation Gate**: Agent must present its understanding in everyday human language (no code diffs, syntax, or technical jargon) with a clear **Before (Current Behavior)** vs **After (New Behavior)** explanation and visual flowchart so the user can easily verify or correct the agent's mental model.
+- **Prettier Temporary `SUMMARY.md` Confirmation**: Instead of dumping walls of raw text into the terminal, the agent writes the Plain-Language Before & After breakdown, Mermaid flowchart, and collision audit to a temporary `SUMMARY.md` in the project root so it renders beautifully in markdown preview before code implementation.
 - **Zero-Context Scaffolding (No `references/` directory)**: Removed `references/example-docs-tree.md` and `references/formats.md`. All templates and structural conventions are executed strictly via scripts (`init_docs.py`, `new_doc.py`), achieving zero token waste on reference documents.
 - **Strict Docs-First Implementation Loop**: Enforces "Requirements First, Code Later" across all development requests (add, fix, modify, remove) before touching code.
 - **Pre-Implementation Grilling**: Prompts and aligns on requirements for non-existent/incomplete features before drafting specs or code.

@@ -81,14 +81,20 @@ Create or update `docs/features/<NNN>-<kebab-name>.md` using `python scripts/new
 - Keep one canonical term per concept (e.g. `Buyer`). List forbidden synonyms in `Avoid` (`customer`, `client`).
 - The canonical term is the exact name to be used in code identifiers (`buyerId`, `BuyerService`).
 
-### Step 5: User Confirmation Gate (Plain-Language Before & After)
-Present the AI's understanding to the user in **everyday, plain human language** — avoid code syntax, code diffs, or technical jargon:
-1. **Before (Current Behavior)**: Plain explanation of how the system currently works based on the existing codebase/docs.
-2. **After (New Behavior)**: Plain explanation of what will happen once the change is made (what is added, changed, or removed).
-3. **Flowchart**: The Mermaid diagram illustrating the flow visually.
-4. **Alignment Check**: Explicitly ask the user: *"Does this match your understanding, or does anything need correction before we proceed?"*
+### Step 5: User Confirmation Gate (Prettier Temporary `SUMMARY.md`)
+Instead of dumping walls of raw text into the terminal, write the alignment summary to a temporary `SUMMARY.md` in the project root so it renders beautifully in markdown preview (with formatted Mermaid charts and clean tables):
 
-**Wait for the user's confirmation or corrections before writing or modifying any code.** Once confirmed, the requirement is locked and ready for implementation.
+The `SUMMARY.md` must contain:
+1. **Before (Current Behavior)**: Plain everyday human language explaining how the system works right now based on the existing code and docs (strictly no code diffs or programming jargon).
+2. **After (What Will Happen)**: Plain everyday language explaining what will happen once the change is made (what is added, modified, or removed).
+3. **Logic Flowchart**: The visual Mermaid diagram of the flow.
+4. **Cross-Feature Conflict Check**: Confirmation that no contradictory business rules or collisions exist.
+5. **Confirmation Prompt**: Asking the user to confirm or adjust the understanding.
+
+In the terminal/chat, provide only a short notification with a link to `SUMMARY.md`:
+> *"I have prepared the requirement alignment summary in `SUMMARY.md`. Please review the Before/After breakdown and flowchart, and let me know if this matches your understanding or if anything needs correction before we proceed."*
+
+**Wait for the user's confirmation or corrections before writing or modifying any code.** Once confirmed and implementation is complete, delete the temporary `SUMMARY.md`.
 
 ---
 
