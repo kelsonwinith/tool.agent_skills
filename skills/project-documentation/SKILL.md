@@ -1,116 +1,111 @@
 ---
 name: project-documentation
-description: "Portable, project-agnostic documentation guardian. Manages and continuously synchronizes a project's canonical context (ubiquitous-language glossary), product, business, architectural, and technical documentation under docs/. Use this whenever you develop, modify, or refactor a feature, or when requirements, business rules, APIs, data models, architecture, or terminology change — even if the user never says 'docs' or 'documentation.' It grills the request's logic before writing (a design-tree interview), reconciles terminology against the canonical context (treating each glossary term as the concept's name in both docs and code, so a renamed term renames its code identifiers too), detects requirement mismatches and confirms before changing them, keeps every document describing the current system (removed features are removed from the docs), ships deterministic validators, and follows the numbered docs subfolder file convention. Works for any language, framework, or repo shape."
+description: "Requirement-polishing and documentation guardian. ALWAYS use this skill whenever the user asks to implement, add, fix, change, refactor, or remove any feature, logic, flow, data model, or requirement — even if the user never mentions 'docs' or 'documentation'. This skill is NOT about how things are mechanically coded; it polishes raw user requirements against the existing codebase and docs so that the user and AI share the exact same understanding before writing any code. It scans the current code and docs, scaffolds boilerplate via scripts when docs are missing, grills the user on unverified or ambiguous requirements, visualizes the polished requirement with a Mermaid flowchart, audits cross-feature conflicts, aligns domain terminology, and secures user confirmation before any coding begins. Works for any language, framework, or repo."
 license: MIT
-compatibility: "Requires Python 3 (standard library only) to run the bundled helpers in scripts/."
+compatibility: "Requires Python 3 (standard library only) to run bundled helpers in scripts/."
 metadata:
-  version: 1.4.0
+  version: 2.0.0
 ---
 
-# Project Documentation
+# Project Documentation: Requirements First, Code Later
 
-A project's docs and its code drift apart quietly. This skill keeps them honest: it manages the `docs/` tree, agrees on what words mean, and makes sure a request's logic is settled before anything gets written.
+This skill is **not about how things are coded**. It is a **requirement-polishing and alignment engine**: it takes the user's raw prompt ("add this", "fix that", "remove this"), reconciles it against the existing codebase, and polishes it into a crisp, unambiguous specification so that **both user and AI share the exact same understanding before any coding begins**.
 
-It contains no project-specific facts — everything it needs is discovered from the project and written into that project's own `docs/`.
+Docs describe the system *as it is right now* (never a changelog). When a feature is removed, delete its document and all references to it.
 
-## Docs describe the current system, not its history
+---
 
-Documentation is a snapshot of what the system *is right now*, never a changelog. If a feature is removed or replaced, delete its documentation and every reference to it — don't leave a "removed" or "deprecated" section behind, and don't keep describing behaviour that no longer exists. When code and docs disagree, the docs are wrong until updated.
+## 1. The Lean `docs/` Structure
 
-The one deliberate exception is the ADR log under `decisions/`: it records *why* past choices were made, and is useful precisely because it is historical.
-
-## The `docs/` tree
-
-Documents live in semantic subfolders, numbered so they're easy to reference:
+To minimize token overhead and maximize visual clarity, documentation is organized into single root files and scalable subfolders:
 
 ```text
-docs/<subfolder>/<NNN>-<kebab-name>.md
+docs/
+├── README.md                      # Index, overview, and feature status table
+├── context.md                     # [Single file] Canonical ubiquitous language & global invariants
+├── architecture.md                # [Single file] High-level stack, component diagram & data models
+├── features/                      # [Multi-file] Scalable: 100+ separate feature specs
+│   ├── 001-user-auth.md           # Polished spec + Mermaid flowchart + rules + conflict check
+│   └── 002-order-checkout.md
+└── decisions/                     # [Multi-file] Architecture Decision Records (ADRs)
+    └── 001-db-choice.md
 ```
 
-Five subfolders cover most projects: `context/` (the canonical language), `product/`, `architecture/`, `decisions/`, and `development/`. Numbers are per-subfolder and stable — don't renumber to close gaps. A complete example is in [references/example-docs-tree.md](references/example-docs-tree.md).
+- **Singletons (flat, unnumbered)**: Global sources of truth (`README.md`, `context.md`, `architecture.md`).
+- **Multi-file collections (`<NNN>-<kebab>.md`)**: Feature specs and ADRs that grow with the project.
+- **Strictly script-driven**: Never manually craft boilerplate files. Run `scripts/init_docs.py` to scaffold the entire tree and templates, and `scripts/new_doc.py features <name>` to scaffold new features. All templates and formats are pre-bundled in the scripts to eliminate prompt token overhead.
 
-Every document except the glossary and the ADR log opens with a header:
+---
 
-```markdown
-# <Title>
+## 2. Requirement Polishing Workflow
 
-**Document Version**: X.Y.Z
-**Status**: Draft | Active
+Every development request (add, fix, modify, or remove) goes through requirement polishing before any code is touched:
+
+```mermaid
+flowchart TD
+    Req([User Prompt: Add / Fix / Change / Remove]) --> Scan[Scan Existing Codebase & docs/]
+    Scan --> CheckDocs{docs/ exists?}
+    CheckDocs -->|No| Init[Run scripts/init_docs.py & Advise Baseline]
+    CheckDocs -->|Yes| FeatureExists{Feature documented in docs/features/?}
+    Init --> FeatureExists
+    FeatureExists -->|No / Ambiguous| Grill[Grill User: Clarify Requirement & Edge Cases]
+    Grill --> Polish
+    FeatureExists -->|Yes| Polish[Polish Requirement in docs/features/ & Draw Mermaid]
+    Polish --> ConflictAudit[Cross-Feature Conflict & Overlap Check]
+    ConflictAudit --> SyncGlossary[Sync Ubiquitous Language in docs/context.md]
+    SyncGlossary --> ConfirmGate{User Confirms Polished Spec & Flowchart?}
+    ConfirmGate -->|Changes requested| Polish
+    ConfirmGate -->|Approved| ReadyToCode([Requirement Locked: Proceed to Code])
 ```
 
-Keep `docs/README.md` as an index, with the canonical context listed first.
+### Step 1: Scan & Baseline
+- Scan the existing codebase and docs to understand the current reality.
+- If `docs/` is missing, run `python scripts/init_docs.py` to scaffold boilerplate templates instantly without spending LLM tokens.
+- **Existing codebase without docs**: Recommend documenting the current baseline first before introducing new features.
 
-## The canonical context
+### Step 2: Requirement Polishing & Grilling
+- Do not make assumptions. If the user prompt is high-level, missing edge cases, or introduces an undocumented feature:
+- **Grill the user first**: Ask concise, numbered questions with recommended answers covering user journey, validation rules, error handling, and data models.
 
-Different people call the same thing different names — "account" vs "customer", "order" vs "purchase". Left alone, everyone guesses, and the guesses drift. So keep one glossary at `docs/context/001-ubiquitous-language.md` as a table of terms, what each one *means* (what it is, not what it does), and the words to avoid:
+### Step 3: Visual Spec (Flowchart & Conflict Audit)
+Create or update `docs/features/<NNN>-<kebab-name>.md` using `python scripts/new_doc.py features <name>`:
+1. **Mermaid Flowchart**: Every feature MUST include a Mermaid flowchart modeling its user journey, logic branches, or state machine.
+2. **Polished Rules**: Explicit functional requirements and boundary conditions.
+3. **Cross-Feature Conflict Check**: Explicitly audit adjacent features in `docs/features/`:
+   - Does this new/modified feature contradict existing business rules?
+   - Are there overlapping state transitions, duplicated responsibilities, or competing endpoints?
+   - If a conflict is found, flag it with clear resolution options.
 
-```markdown
-| Term | Meaning | Avoid |
-| :--- | :--- | :--- |
-| Order | A request from a customer to buy one or more items. | Purchase, transaction |
-| Customer | A person or organization that places orders. | Client, buyer, account |
-```
+### Step 4: Synchronize Ubiquitous Language
+`docs/context.md` binds domain concepts to code identifiers:
+- Keep one canonical term per concept (e.g. `Buyer`). List forbidden synonyms in `Avoid` (`customer`, `client`).
+- The canonical term is the exact name to be used in code identifiers (`buyerId`, `BuyerService`).
 
-Only project-specific terms belong here — not general programming concepts. One canonical term per concept; list every synonym in `Avoid`. When a term is resolved, write it down immediately. When someone uses a term that conflicts with the glossary, say so and reconcile it before going further. Multi-context repos keep one glossary per context plus a map (format in [references/formats.md](references/formats.md)).
+### Step 5: User Confirmation Gate (Plain-Language Before & After)
+Present the AI's understanding to the user in **everyday, plain human language** — avoid code syntax, code diffs, or technical jargon:
+1. **Before (Current Behavior)**: Plain explanation of how the system currently works based on the existing codebase/docs.
+2. **After (New Behavior)**: Plain explanation of what will happen once the change is made (what is added, changed, or removed).
+3. **Flowchart**: The Mermaid diagram illustrating the flow visually.
+4. **Alignment Check**: Explicitly ask the user: *"Does this match your understanding, or does anything need correction before we proceed?"*
 
-### A glossary term is the same word in docs and code
+**Wait for the user's confirmation or corrections before writing or modifying any code.** Once confirmed, the requirement is locked and ready for implementation.
 
-The canonical term is not just prose vocabulary — it is the name that should appear in the codebase too. Variables, functions, types, DTO fields, API params, DB columns, and route segments all carry the same concept, so they should use the same canonical term. When docs say `Buyer` but code says `client`/`Client`/`clientId`, every reader has to translate between two vocabularies, and the drift is where bugs and misunderstandings hide.
+---
 
-- The glossary term is the single source of truth for a concept's name. Pick the canonical English term, then use it consistently across docs **and** code.
-- Code identifiers follow the term, adjusted only for the language's casing convention — i.e. the term's own casing is not mutated beyond that. `Buyer` → `buyer`, `BuyerId`, `buyerId`, `useBuyer`, `fetchBuyers`; never `client`, `ClientId`, `customer`.
-- If a concept already has a different name in code, the mismatch is a reconciliation task, not something to leave in place.
+## 3. Removals & Refactoring
 
-### When a term's meaning changes, rename it everywhere at once
+When a requirement is removed or replaced:
+- Delete the corresponding `docs/features/<NNN>-<name>.md`.
+- Prune all references to it in `docs/README.md`, `docs/context.md`, and dependent feature specs.
+- Docs must always reflect current reality, never dead features.
 
-A glossary term is a living definition: requirements change, and the word often changes with them. Treat a rename as a change in the canonical context that must propagate in a single, synchronized move — never let a new name land in the glossary while the old name lingers in code, or new code while docs still describe the old concept.
+---
 
-The rule: **changing a term means updating both its glossary entry and every code identifier that used the old name, in the same change.** No half-renames, no alias left behind, no "avoid" synonym still living in the source.
+## 4. Helpers & Validation
 
-Example — the requirement shifts so a `Client` is now called a `Buyer`:
-
-1. Update `docs/context/001-ubiquitous-language.md`: rename the term to `Buyer`, rewrite its meaning, and move `Client` into the `Avoid` column.
-2. Rename the code identifiers that carried `client` → `buyer` (`client` → `buyer`, `clientId` → `buyerId`, `ClientCard` → `BuyerCard`, types, API fields, DB references).
-3. Update every dependent document that mentioned the old term (requirements, business rules, architecture, data models).
-4. Flag the rename to the user as a terminology change, per the reconciliation rules below, before executing it.
-
-Skip the glossary-vs-code link and you get the exact confusion this skill exists to prevent: docs talking about buyers while the codebase still talks about clients. This skill defines *what you should do* — the ordering of the rename and the invariant that both sides stay in sync — not the mechanics of any specific refactoring tool; apply your project's own rename/refactor process to carry it out.
-
-## Before you build
-
-A request is rarely complete, and its gaps are exactly where you'd guess wrong. So before writing docs or code, grill the request to a shared understanding:
-
-- Treat it as a design tree. Ask the questions you can answer *now* — whose prerequisites are already settled — as one round, then wait for the answers.
-- Number each question and give your recommended answer; a concrete proposal is faster to react to than an open question.
-- Look facts up yourself (files, configs, existing behavior). Only decisions go to the user.
-- Stop when nothing is left assumed and the user confirms you're aligned.
-
-Then check the request against what's already documented:
-
-- **Terminology** — resolve the request's words against the glossary. Undefined terms get a proposed definition; conflicts get flagged. If a term's *meaning* changed, treat it as a rename: the glossary entry and every code identifier using the old word change together (§"When a term's meaning changes").
-- **Requirements** — if the request conflicts with a documented requirement, stop and show the mismatch, then wait for confirmation before changing anything.
-
-Message templates are in [references/formats.md](references/formats.md).
-
-## Keeping docs in sync
-
-Docs are a graph: the canonical context feeds requirements → business rules → architecture → code → tests. A change in one layer should update only the documents it affects, and every document should end up describing the system as it now stands. Keep names, status values, and rules identical across all of them — and identical to the codebase's identifiers, since the glossary term is also the code's name for that concept. Preserve unrelated context when you edit.
-
-Removals count as changes: when a feature, endpoint, field, or rule disappears, prune it from every document that mentioned it, and remove the whole document if nothing real is left in it.
-
-## Decisions
-
-Record a decision as an ADR only when it's hard to reverse, surprising without context, and the result of a real trade-off. Otherwise skip it. The template is in [references/formats.md](references/formats.md); keep IDs sequential. ADRs are the one place history is kept on purpose — current-state docs are not.
-
-## Bootstrapping
-
-In a repo with no docs, run `scripts/init_docs.py` to create the tree, index, and glossary skeleton, then document only what you can verify from the code. Mark unknowns with a `<!-- TODO -->` rather than inventing, and prompt the user for the high-level things you can't infer — personas, business rules, ambiguous terms.
-
-## Helpers
-
-`scripts/` holds optional helpers; run them from the project root.
-
-- `init_docs.py` / `new_doc.py` — create the tree and allocate the next numbered document.
-- `docs_lint.py` / `glossary_lint.py` / `adr_scan.py` — check the conventions (naming, headers, glossary shape, ADR integrity) and flag drift. Treat a failure as a blocker.
-
-These are conveniences, not gates. The point is the shared understanding above.
+Run from project root (Python standard library only):
+- `python scripts/init_docs.py`: Scaffolds the lean structure with starter templates.
+- `python scripts/new_doc.py features <name>`: Allocates the next feature doc with Mermaid flowchart and conflict check boilerplate.
+- `python scripts/docs_lint.py`: Validates structure, headers, Mermaid diagrams, and conflict sections.
+- `python scripts/glossary_lint.py`: Validates `docs/context.md` table and scans code for forbidden synonyms (`--scan`).
+- `python scripts/adr_scan.py`: Validates ADR integrity in `docs/decisions/`.

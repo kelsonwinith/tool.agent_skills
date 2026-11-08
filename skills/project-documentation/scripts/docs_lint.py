@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Validate a project's docs/ tree against the numbered documentation convention.
+"""Validate a project's docs/ tree against documentation conventions.
 
 Checks (see SKILL.md):
-  1. Every markdown file lives at docs/<subfolder>/<NNN>-<kebab-name>.md.
-  2. No ad-hoc markdown files sit directly under docs/ (except docs/README.md).
+  1. Allowed root singletons under docs/: README.md, context.md, architecture.md.
+     No unexpected loose markdown files sit directly in docs/.
+  2. Subfolder documents live at docs/<subfolder>/<NNN>-<kebab-name>.md.
   3. <NNN> is a 3-digit number, unique within its subfolder.
   4. Subfolder and file names are lowercase kebab-case.
-  5. Every document (except the index) opens with the header block:
-     **Document Version**: X.Y.Z and **Status**: Draft|Active.
+  5. Feature documents (under docs/features/) have:
+     - Header: **Document Version**: X.Y.Z and **Status**: Draft|Active
+     - Mermaid flowchart block (```mermaid)
+     - Cross-Feature Conflict & Overlap Check section
+  6. ADR documents (under docs/decisions/) follow ADR structure.
 
 Usage:
     python scripts/docs_lint.py [docs_dir]   # docs_dir defaults to "docs"
@@ -24,10 +28,9 @@ SUBFOLDER_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 FILENAME_RE = re.compile(r"^(\d{3})-([a-z0-9]+(?:-[a-z0-9]+)*)\.md$")
 VERSION_RE = re.compile(r"^\*\*Document Version\*\*:\s*\S+", re.MULTILINE)
 STATUS_RE = re.compile(r"^\*\*Status\*\*:\s*(Draft|Active)\b", re.MULTILINE)
+MERMAID_RE = re.compile(r"```mermaid\s+(flowchart|graph|sequenceDiagram|stateDiagram)", re.MULTILINE)
 
-IGNORED_ROOT_FILES = {"readme.md"}
-# The canonical-context glossary and ADR records have their own formats
-# (see SKILL.md) and are not required to carry a version header.
+ALLOWED_ROOT_FILES = {"readme.md", "context.md", "architecture.md"}
 HEADER_EXEMPT_SUBFOLDERS = {"context", "decisions"}
 
 
@@ -39,7 +42,7 @@ def lint(docs_dir: Path):
         return [f"{docs_dir}: not a directory"], []
 
     if not (docs_dir / "README.md").exists():
-        warnings.append(f"{docs_dir}/README.md: missing docs index (optional but recommended)")
+        warnings.append(f"{docs_dir}/README.md: missing docs index (recommended)")
 
     numbers = {}  # subfolder -> {number: filename}
 
@@ -47,12 +50,13 @@ def lint(docs_dir: Path):
         rel = path.relative_to(docs_dir)
         parts = rel.parts
 
+        # Root file under docs/
         if len(parts) == 1:
-            if rel.name.lower() in IGNORED_ROOT_FILES:
+            if rel.name.lower() in ALLOWED_ROOT_FILES:
                 continue
             failures.append(
-                f"{docs_dir}/{rel}: file sits directly under docs/ — move it into a "
-                f"registered subfolder as <NNN>-<kebab-name>.md"
+                f"{docs_dir}/{rel}: unrecognized file directly under docs/ — only README.md, "
+                f"context.md, and architecture.md belong at the root. Move features into docs/features/."
             )
             continue
 
@@ -83,13 +87,23 @@ def lint(docs_dir: Path):
             numbers[subfolder][number] = filename
 
         text = path.read_text(encoding="utf-8", errors="replace")
-        if subfolder not in HEADER_EXEMPT_SUBFOLDERS:
+
+        # Feature-specific checks
+        if subfolder == "features":
             if not VERSION_RE.search(text):
                 failures.append(f"{docs_dir}/{rel}: missing '**Document Version**: X.Y.Z' header")
             if not STATUS_RE.search(text):
-                failures.append(
-                    f"{docs_dir}/{rel}: missing '**Status**: Draft|Active' header"
-                )
+                failures.append(f"{docs_dir}/{rel}: missing '**Status**: Draft|Active' header")
+            if not MERMAID_RE.search(text):
+                warnings.append(f"{docs_dir}/{rel}: missing a Mermaid diagram (flowchart/sequence)")
+            if "conflict" not in text.lower():
+                warnings.append(f"{docs_dir}/{rel}: missing a cross-feature conflict/overlap check section")
+
+        elif subfolder not in HEADER_EXEMPT_SUBFOLDERS:
+            if not VERSION_RE.search(text):
+                failures.append(f"{docs_dir}/{rel}: missing '**Document Version**: X.Y.Z' header")
+            if not STATUS_RE.search(text):
+                failures.append(f"{docs_dir}/{rel}: missing '**Status**: Draft|Active' header")
 
     return failures, warnings
 
@@ -99,17 +113,19 @@ def main() -> int:
     parser.add_argument("docs_dir", nargs="?", default="docs", help="path to the docs directory (default: docs)")
     args = parser.parse_args()
 
-    failures, warnings = lint(Path(args.docs_dir))
+    docs_dir = Path(args.docs_dir)
+    failures, warnings = lint(docs_dir)
 
-    for warning in warnings:
-        print(f"WARN  {warning}")
-    for failure in failures:
-        print(f"FAIL  {failure}")
+    for warn in warnings:
+        print(f"WARN  {warn}")
+    for fail in failures:
+        print(f"FAIL  {fail}")
 
     if failures:
-        print(f"\nFAIL: {len(failures)} error(s), {len(warnings)} warning(s)")
+        print(f"\n{len(failures)} failure(s) found.", file=sys.stderr)
         return 1
-    print(f"\nPASS: docs tree is valid ({len(warnings)} warning(s))")
+
+    print(f"PASS  {docs_dir} meets documentation conventions.")
     return 0
 
 

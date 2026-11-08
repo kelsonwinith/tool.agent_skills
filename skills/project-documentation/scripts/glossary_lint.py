@@ -82,10 +82,14 @@ def parse_terms(text):
 def discover_glossary(explicit):
     if explicit:
         return [Path(explicit)]
+    found = []
+    root_context = Path("docs/context.md")
+    if root_context.is_file():
+        found.append(root_context)
     context_dir = Path("docs/context")
-    if not context_dir.is_dir():
-        return []
-    return [p for p in sorted(context_dir.glob("*.md")) if "context-map" not in p.name.lower()]
+    if context_dir.is_dir():
+        found.extend([p for p in sorted(context_dir.glob("*.md")) if "context-map" not in p.name.lower()])
+    return found
 
 
 def scan_for_synonyms(synonyms, scan_paths, glossary_path):
