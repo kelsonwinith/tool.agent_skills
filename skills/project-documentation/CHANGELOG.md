@@ -2,7 +2,7 @@
 
 ## 2.0.0
 - **Requirement-Polishing Focus**: Refocused the skill from low-level coding mechanics to requirement polishing and mutual understanding. The skill reconciles user prompts with the existing codebase and docs, settles edge cases, and secures alignment before any coding occurs.
-- **Prettier Temporary `docs/SUMMARY.md` Confirmation**: Instead of dumping raw terminal text, the agent writes the Plain-Language Before & After breakdown, side-by-side comparison table (with direct doc links), dual Mermaid flowcharts (Current vs. Proposed with high-contrast color highlights), and collision audit to a temporary `docs/SUMMARY.md` (automatically added to `.gitignore` during `init_docs.py`).
+- **Persistent Gitignored `docs/requests/` History**: Instead of a temporary file, the agent writes each alignment summary to `docs/requests/<NNN>-<title>.md` featuring a side-by-side comparison table, dual Mermaid flowcharts (Current vs. Proposed with high-contrast color highlights), and collision check. This folder is gitignored, persists permanently as human reference history, and is never deleted or read by the AI for project context.
 - **Zero-Context Scaffolding (No `references/` directory)**: Removed `references/example-docs-tree.md` and `references/formats.md`. All templates and structural conventions are executed strictly via scripts (`init_docs.py`, `new_doc.py`), achieving zero token waste on reference documents.
 - **Strict Docs-First Implementation Loop**: Enforces "Requirements First, Code Later" across all development requests (add, fix, modify, remove) before touching code.
 - **Pre-Implementation Grilling**: Prompts and aligns on requirements for non-existent/incomplete features before drafting specs or code.

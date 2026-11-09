@@ -65,6 +65,10 @@ def lint(docs_dir: Path):
 
         subfolder, filename = parts[0], parts[-1]
 
+        # Ignore requests history folder (gitignored, human reference only)
+        if subfolder == "requests":
+            continue
+
         if not SUBFOLDER_RE.match(subfolder):
             failures.append(f"{docs_dir}/{rel}: subfolder '{subfolder}' is not kebab-case")
 

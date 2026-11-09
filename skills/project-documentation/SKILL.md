@@ -27,12 +27,15 @@ docs/
 ├── features/                      # [Multi-file] Scalable: 100+ separate feature specs
 │   ├── 001-user-auth.md           # Polished spec + Mermaid flowchart + rules + conflict check
 │   └── 002-order-checkout.md
-└── decisions/                     # [Multi-file] Architecture Decision Records (ADRs)
-    └── 001-db-choice.md
+├── decisions/                     # [Multi-file] Architecture Decision Records (ADRs)
+│   └── 001-db-choice.md
+└── requests/                      # [Gitignored] Human history of user alignment summaries (AI never reads)
+    └── 001-add-google-oauth.md
 ```
 
 - **Singletons (flat, unnumbered)**: Global sources of truth (`README.md`, `context.md`, `architecture.md`).
 - **Multi-file collections (`<NNN>-<kebab>.md`)**: Feature specs and ADRs that grow with the project.
+- **Human history (`requests/`)**: Gitignored log of user requests. The AI writes to it for human review, never deletes them, and never reads them for context.
 - **Strictly script-driven**: Never manually craft boilerplate files. Run `scripts/init_docs.py` to scaffold the entire tree and templates, and `scripts/new_doc.py features <name>` to scaffold new features. All templates and formats are pre-bundled in the scripts to eliminate prompt token overhead.
 
 ---
@@ -81,10 +84,15 @@ Create or update `docs/features/<NNN>-<kebab-name>.md` using `python scripts/new
 - Keep one canonical term per concept (e.g. `Buyer`). List forbidden synonyms in `Avoid` (`customer`, `client`).
 - The canonical term is the exact name to be used in code identifiers (`buyerId`, `BuyerService`).
 
-### Step 5: User Confirmation Gate (Prettier Temporary `docs/SUMMARY.md`)
-Instead of dumping walls of raw text into the terminal, write the alignment summary to a temporary `docs/SUMMARY.md` so it renders beautifully in markdown preview (with side-by-side tables and formatted Mermaid charts). It is automatically ignored in git via `.gitignore`.
+### Step 5: User Confirmation Gate (`docs/requests/<NNN>-<title>.md`)
+Instead of dumping walls of raw text into the terminal, write the alignment summary to a persistent history document under `docs/requests/<NNN>-<kebab-title>.md` (e.g. `docs/requests/001-add-google-oauth.md`, sequential per request):
 
-The `docs/SUMMARY.md` must follow this structure:
+Key rules for `docs/requests/`:
+- **Gitignored by default**: `docs/requests/` is automatically ignored in git via `.gitignore`.
+- **Never Deleted**: Persists as a permanent human audit history of all user requests.
+- **AI Never Reads**: The AI must **NEVER** read `docs/requests/` for project context. Current system state comes strictly from `context.md`, `architecture.md`, and `features/`.
+
+The alignment document must follow this exact structure:
 1. **Overview**: 1-2 sentence plain-language summary of what the request accomplishes.
 2. **Side-by-Side Comparison (What It Is vs. What Changes)**:
    - Markdown table comparing `Area / Context`, `Before (Current System)`, `After (Proposed Change)`, and `Document Reference` (linking to specific sections in `docs/features/`, `docs/context.md`, or `docs/architecture.md`).
@@ -99,10 +107,10 @@ The `docs/SUMMARY.md` must follow this structure:
 5. **User Confirmation**:
    - Concise prompt asking the user to confirm or adjust the understanding.
 
-In the terminal/chat, provide only a short notification with a link to `docs/SUMMARY.md`:
-> *"I have prepared the requirement alignment summary in `docs/SUMMARY.md`. Please review the Before/After comparison and flowcharts, and let me know if this matches your understanding or if anything needs correction before we proceed."*
+In the terminal/chat, provide only a short notification with a link to the created file:
+> *"I have prepared the requirement alignment summary in `docs/requests/<NNN>-<kebab-title>.md`. Please review the Before/After comparison and flowcharts, and let me know if this matches your understanding or if anything needs correction before we proceed."*
 
-**Wait for the user's confirmation or corrections before writing or modifying any code.** Once confirmed and implementation is complete, delete the temporary `docs/SUMMARY.md`.
+**Wait for the user's confirmation or corrections before writing or modifying any code.**
 
 ---
 

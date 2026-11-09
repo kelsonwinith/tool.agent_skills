@@ -3,3 +3,7 @@ skills-lock.json
 
 __pycache__/
 *.pyc
+
+# User requirement alignment history (human reference only)
+docs/requests/
+
