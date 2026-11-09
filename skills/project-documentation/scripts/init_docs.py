@@ -201,6 +201,21 @@ def main() -> int:
         decisions_keep.write_text("", encoding="utf-8")
         created.append(decisions_keep)
 
+    # 6. Ensure docs/SUMMARY.md is ignored in .gitignore
+    gitignore_path = (docs.parent / ".gitignore") if docs.parent.is_dir() else Path(".gitignore")
+    ignore_entry = f"{docs.name}/SUMMARY.md"
+    if gitignore_path.exists():
+        content = gitignore_path.read_text(encoding="utf-8")
+        if ignore_entry not in content and "SUMMARY.md" not in content:
+            with gitignore_path.open("a", encoding="utf-8") as f:
+                if not content.endswith("\n") and len(content) > 0:
+                    f.write("\n")
+                f.write(f"# Temporary requirement alignment summary\n{ignore_entry}\n")
+            print(f"UPDATE  {gitignore_path} (added {ignore_entry})")
+    else:
+        gitignore_path.write_text(f"# Temporary requirement alignment summary\n{ignore_entry}\n", encoding="utf-8")
+        print(f"CREATE  {gitignore_path} (added {ignore_entry})")
+
     for path in created:
         print(f"CREATE  {path}")
     for path in existing:
