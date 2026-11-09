@@ -34,9 +34,9 @@ class InitAndLintTests(unittest.TestCase):
             self.assertTrue((docs / "features/001-example-feature.md").exists())
             self.assertTrue((docs / "decisions").is_dir())
             self.assertTrue((docs / "requests").is_dir())
-            gitignore = Path(tmp) / ".gitignore"
+            gitignore = docs / ".gitignore"
             self.assertTrue(gitignore.exists())
-            self.assertIn("docs/requests/", gitignore.read_text())
+            self.assertIn("requests/", gitignore.read_text())
 
             # Historical request files are ignored by docs_lint
             (docs / "requests/001-req.md").write_text("# Request 001\n")

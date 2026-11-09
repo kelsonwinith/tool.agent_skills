@@ -203,12 +203,12 @@ def main() -> int:
         decisions_keep.write_text("", encoding="utf-8")
         created.append(decisions_keep)
 
-    # 6. Ensure docs/requests/ is ignored in .gitignore
-    gitignore_path = (docs.parent / ".gitignore") if docs.parent.is_dir() else Path(".gitignore")
-    ignore_entry = f"{docs.name}/requests/"
+    # 6. Ensure requests/ is ignored in docs/.gitignore
+    gitignore_path = docs / ".gitignore"
+    ignore_entry = "requests/"
     if gitignore_path.exists():
         content = gitignore_path.read_text(encoding="utf-8")
-        if ignore_entry not in content and "requests/" not in content:
+        if ignore_entry not in content:
             with gitignore_path.open("a", encoding="utf-8") as f:
                 if not content.endswith("\n") and len(content) > 0:
                     f.write("\n")
